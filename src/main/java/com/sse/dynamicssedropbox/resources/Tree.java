@@ -34,6 +34,13 @@ public class Tree {
         return idSet;
     }
 
+    public void update(BigInteger[] values) {
+        assert values.length == 3;
+        assert levels[0].values[0].hkey == null;
+
+        levels[0].values[0] = new Value(values[0], values[1], values[2]);
+    }
+
     public void simpleRebuild(BigInteger[][] values) {
         int level = firstEmptyLevel();
         for(int i = 0; i < level; i++) {
