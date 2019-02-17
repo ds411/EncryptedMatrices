@@ -35,16 +35,20 @@ public class Tree {
     }
 
     public void simpleRebuild(BigInteger[][] values) {
-        //lg(n) + 1 levels
-        TreeLevel[] newLevels = new TreeLevel[(int)Math.ceil(Math.log(values.length) / Math.log(2)) + 1];
-        for(int i = 0; i < newLevels.length; i++) {
-            newLevels = new TreeLevel[i];
+        int level = firstEmptyLevel();
+        for(int i = 0; i < level; i++) {
+            levels[i] = new TreeLevel(i);
         }
-        Value[] newValues = new Value[values.length];
-        for(int i = 0; i < newValues.length; i++) {
-            newValues[i] = new Value(values[i][0], values[i][1], values[i][2]);
+        TreeLevel newLevel = new TreeLevel(level);
+        for(int i = 0; i < newLevel.values.length; i++) {
+            newLevel.values[i] = new Value(values[i][0], values[i][1], values[i][2]);
         }
-        newLevels[newLevels.length-1].values = newValues;
-        levels = newLevels;
+    }
+
+    public int firstEmptyLevel() {
+        for(int i = 0; i < levels.length; i++) {
+            if(levels[i].values[i] == null) return i;
+        }
+        return levels.length;
     }
 }
