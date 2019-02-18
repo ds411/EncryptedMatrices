@@ -10,6 +10,10 @@ public class Tree {
     final short ADD = 0;
     final short DEL = 1;
 
+    public Tree() {
+        this(8);
+    }
+
     public Tree(int height) {
         levels = new TreeLevel[height + 1];
         for(int i = 0; i <= height; i++) {
@@ -34,11 +38,11 @@ public class Tree {
         return idSet;
     }
 
-    public void update(BigInteger[] values) {
-        assert values.length == 3;
-        assert levels[0].values[0].hkey == null;
+    public boolean update(BigInteger[] values) {
+        if (levels[0].values[0].hkey != null) return false;
 
         levels[0].values[0] = new Value(values[0], values[1], values[2]);
+        return true;
     }
 
     public void simpleRebuild(BigInteger[][] values) {
@@ -57,5 +61,18 @@ public class Tree {
             if(levels[i].values[i] == null) return i;
         }
         return levels.length;
+    }
+
+    public HashMap<Integer, Value[]> levelsToRebuild() {
+        HashMap<Integer, Value[]> rows = new HashMap<>();
+        for(int i = 0; i < levels.length; i++) {
+            if(levels[i].values[i] == null) return rows;
+            rows.put(i, levels[i].values);
+        }
+        return rows;
+    }
+
+    public String toString() {
+        return String.format("{\n%s\n}", Arrays.toString(levels));
     }
 }

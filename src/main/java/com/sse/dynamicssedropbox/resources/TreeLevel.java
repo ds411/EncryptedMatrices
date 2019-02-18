@@ -5,6 +5,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 public class TreeLevel {
 
@@ -31,6 +32,10 @@ public class TreeLevel {
         catch(NoSuchAlgorithmException nsae) {}
         catch(InvalidKeyException ike) {}
         return null;
+    }
+
+    public String toString() {
+        return String.format("{\n%s\n}", Arrays.toString(values));
     }
 
 }
