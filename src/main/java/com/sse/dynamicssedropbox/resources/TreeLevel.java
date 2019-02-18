@@ -23,7 +23,7 @@ public class TreeLevel {
             BigInteger hkey;
             for (int i = 0; i < values.length; i++) {
                 hkey = new BigInteger(hmac.doFinal(new BigInteger(String.format("0%d%s", op, Integer.toBinaryString(i)), 2).toByteArray()));
-                if(values[i].hkey.equals(hkey)) {
+                if(values[i] != null && values[i].hkey.equals(hkey)) {
                     BigInteger c1 = new BigInteger(String.format("1%d%s", op, Integer.toBinaryString(i)), 2);
                     return c1.xor(values[i].c1);
                 }
@@ -35,7 +35,7 @@ public class TreeLevel {
     }
 
     public String toString() {
-        return String.format("{\n%s\n}", Arrays.toString(values));
+        return Arrays.toString(values);
     }
 
 }

@@ -73,6 +73,6 @@ public class Tree {
     }
 
     public String toString() {
-        return String.format("{\n%s\n}", Arrays.toString(levels));
+        return Arrays.toString(levels);
     }
 }
