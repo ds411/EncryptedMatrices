@@ -1,15 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.springframework.org/schema/mvc">
 <head>
     <meta charset="UTF-8">
     <title>Dynamic SSE Dropbox</title>
+    <script src="/sjcl.js" th:src="@{/sjcl.js}"></script>
 </head>
 <body>
     <input type="file" accept="text/plain" onchange="readWords(event)">
     <script>
+        //Generates a new key
+        var newKey = function() {
+            return sjcl.random.randomWords(8);
+        };
+
         var wordSet = {};
         var keys = {};
-
+        keys['esk'] = newKey();
+        var prf = new sjcl.cipher.aes(keys['esk']);
+        var iv = newKey(); //will make dynamic later
 
         //Generates word set from file
         var readWords = function(event) {
@@ -23,16 +31,17 @@
                 text.split(" ").forEach(function(element) {
                    wordSet[element] = true;
                 });
-            }
+            };
 
             fileReader.readAsText(file);
 
             console.log(wordSet);
-        }
+        };
 
         //Rebuilds first l-1 levels of table
         var simpleRebuild = function(T, l, w, id, op) {
-            var B = [[w, id, op, 0]];
+            var B = [];
+            B[0] = [w, id, op, 0];
             T.forEach(function(tuple) {
                B.push(decrypt(tuple[2]));
             });
@@ -45,7 +54,7 @@
             });
             lev.sort(hkeySort);
             return lev;
-        }
+        };
 
         //Sorts buffer by w > id > op
         var lexSort = function(a, b) {
@@ -59,13 +68,13 @@
                 else return (a[1] < b[1]) ? -1 : 1;
             }
             else return (a[0] < b[0]) ? -1 : 1;
-        }
+        };
 
         //Sorts level by hkey
         var hkeySort = function(a, b) {
             if(a[0] === b[0]) return 0;
             else return (a[0] < b[0]) ? -1 : 1;
-        }
+        };
 
         //Updates cnt values in sorted buffer
         var reCnt = function(B) {
@@ -92,22 +101,44 @@
                 }
             }
             return B;
-        }
+        };
 
         //Decrypts table entry to return (w, id, op, cnt)
         var decrypt = function(c2) {
 
-        }
-
-        //Generates a new key
-        var newKey = function() {
-
-        }
+        };
 
         //Encodes a tuple (w, id, op, cnt) and returns a tuple (hkey, c1, c2)
-        var encodeEntry = function(tuple) {
+        var encodeEntry = function(l, tuple) {
+            var levelPrf = new sjcl.cipher.aes(keys[l]);
+            var token = sjcl.mode.gcm.encrypt(levelPrf, sjcl.hash.sha256.hash(tuple[0]), iv);
+            var hmac = new sjcl.misc.hmac(token);
+            var hmacBits = biteArray([0, tuple[2], tuple[3]]);
+            var hkey = hmac.encrypt(hmacBits);
+            hkey = sjcl.bitArray.extract(hkey, 0, hkey.length);
+            var c1Bits = biteArray([1, tuple[2], tuple[3]]);
+            var c1 = hmac.encrypt(c1Bits);
+            c1 = tuple[1] ^ sjcl.bitArray.extract(c1, 0, c1.length);
+            var c2 = sjcl.mode.gcm.encrypt(prf, biteArray(tuple), iv);
+            c2 = sjcl.bitArray.extract(c2, 0, c2.length);
+            return [hkey, c1, c2];
+        };
 
-        }
+        //Converts an item to a bitArray
+        var bite = function(item) {
+            return sjcl.codec.utf8String.toBits(item);
+        };
+
+        //Converts an array of items into a bitArray
+        var biteArray = function(arr) {
+            var bits = [];
+            arr.forEach(function(item) {
+                bits.concat(bite(item));
+            });
+            return bits;
+        };
+
+
     </script>
 </body>
 </html>
