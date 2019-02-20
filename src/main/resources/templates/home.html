@@ -38,6 +38,93 @@
             console.log(wordSet);
         };
 
+        //Searches keyword
+        var search = function(w) {
+            tokens = {};
+            for(var k in keys.keys) {
+                if(k!=='esk') {
+                    tokens[k] = sjcl.codec.hex.fromBits(token(k, w));
+                }
+            }
+            var req = new XMLHttpRequest();
+
+            req.onload = function(e) {
+
+            };
+
+            req.open("POST", "/api/search");
+            req.send(tokens);
+        };
+
+        //Updates index
+        var update = function(v, id, op) {
+            var req;
+            v.forEach(function(w) {
+                if (!needsRebuild()) {
+                    keys[0] = newKey();
+                    var entry = encodeEntry(0, [w, id, op, 0]);
+                    req = new XMLHttpRequest();
+
+                    req.onload = function(e) {
+
+                    };
+
+                    req.open("POST", "/api/update");
+                    req.send(entry);
+                }
+                else {
+                    var T = fetchTable();
+                    var l = fetchLevel();
+                    var lev = simpleRebuild(T, l, w, id, op);
+
+                    req = new XMLHttpRequest();
+
+                    req.onload = function(e) {
+
+                    };
+
+                    req.open("POST", "/api/rebuild");
+                    req.send(lev);
+                }
+            });
+        };
+
+        //Returns whether table must be rebuilt or not
+        var needsRebuild = function() {
+            var req = new XMLHttpRequest();
+
+            req.onload = function(e) {
+                return req.response === 1;
+            };
+
+            req.open("GET", "/api/needsRebuild");
+            req.send();
+        };
+
+        //Fetches table up to first empty level from server
+        var fetchTable = function() {
+            var req = new XMLHttpRequest();
+
+            req.onload = function(e) {
+                return req.response;
+            };
+
+            req.open("GET", "/api/table");
+            req.send();
+        };
+
+        //Fetches first empty level from server
+        var fetchLevel = function() {
+            var req = new XMLHttpRequest();
+
+            req.onload = function(e) {
+                return req.response;
+            };
+
+            req.open("GET", "/api/level");
+            req.send();
+        };
+
         //Rebuilds first l-1 levels of table
         var simpleRebuild = function(T, l, w, id, op) {
             var B = [];
@@ -108,10 +195,14 @@
             return JSON.parse(sjcl.codec.utf8String.fromBits(sjcl.mode.gcm.decrypt(prf, sjcl.codec.hex.toBits(c2), iv)));
         };
 
+        var token = function(l, w) {
+            var levelPrf = new sjcl.cipher.aes(keys[l]);
+            return sjcl.mode.gcm.encrypt(levelPrf, sjcl.hash.sha256.hash(w), iv);
+        };
+
         //Encodes a tuple (w, id, op, cnt) and returns a tuple (hkey, c1, c2)
         var encodeEntry = function(l, tuple) {
-            var levelPrf = new sjcl.cipher.aes(keys[l]);
-            var token = sjcl.mode.gcm.encrypt(levelPrf, sjcl.hash.sha256.hash(tuple[0]), iv);
+            var token = token(l, tuple[0]);
             var hmac = new sjcl.misc.hmac(token);
             var hmacBits = bite([0, tuple[2], tuple[3]]);
             var hkey = hmac.encrypt(hmacBits);
