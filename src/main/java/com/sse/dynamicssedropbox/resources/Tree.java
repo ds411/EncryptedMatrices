@@ -63,11 +63,11 @@ public class Tree {
         return levels.length;
     }
 
-    public HashMap<Integer, Value[]> levelsToRebuild() {
-        HashMap<Integer, Value[]> rows = new HashMap<>();
+    public List<Value[]> levelsToRebuild() {
+        ArrayList<Value[]> rows = new ArrayList<>();
         for(int i = 0; i < levels.length; i++) {
             if(levels[i].values[i] == null) return rows;
-            rows.put(i, levels[i].values);
+            rows.add(levels[i].values);
         }
         return rows;
     }

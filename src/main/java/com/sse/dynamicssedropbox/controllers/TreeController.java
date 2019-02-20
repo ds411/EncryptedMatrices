@@ -6,8 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 
 @RestController
@@ -17,13 +16,13 @@ public class TreeController {
     @Resource
     private Tree tree;
 
-    @PostMapping(value = "/search", consumes = "application/json")
+    @PostMapping(value = "/search", consumes = "application/json", produces = "application/json")
     public Set<BigInteger> search(@RequestBody BigInteger[] tokens) {
         return tree.search(tokens);
     }
 
-    @PostMapping(value = "/update", consumes = "application/json")
-    public HashMap<Integer, Value[]> update(@RequestBody BigInteger[] values) {
+    @PostMapping(value = "/update", consumes = "application/json", produces = "application/json")
+    public List<Value[]> update(@RequestBody BigInteger[] values) {
         if(!tree.update(values)) return tree.levelsToRebuild();
         return null;
     }

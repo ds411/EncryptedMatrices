@@ -5,6 +5,109 @@
     <title>Dynamic SSE Dropbox</title>
 </head>
 <body>
-Dynamic SSE Dropbox
+    <input type="file" accept="text/plain" onchange="readWords(event)">
+    <script>
+        var wordSet = {};
+        var keys = {};
+
+
+        //Generates word set from file
+        var readWords = function(event) {
+            var fileInput = event.target;
+            var file = fileInput.files[0];
+
+            var fileReader = new FileReader();
+            fileReader.onload = function() {
+                var text = fileReader.result;
+                text = text.trim();
+                text.split(" ").forEach(function(element) {
+                   wordSet[element] = true;
+                });
+            }
+
+            fileReader.readAsText(file);
+
+            console.log(wordSet);
+        }
+
+        //Rebuilds first l-1 levels of table
+        var simpleRebuild = function(T, l, w, id, op) {
+            var B = [[w, id, op, 0]];
+            T.forEach(function(tuple) {
+               B.push(decrypt(tuple[2]));
+            });
+            B.sort(lexSort);
+            B = reCnt(B);
+            keys[l] = newKey();
+            var lev = [];
+            B.forEach(function(tuple) {
+                lev.push(encodeEntry(l, tuple));
+            });
+            lev.sort(hkeySort);
+            return lev;
+        }
+
+        //Sorts buffer by w > id > op
+        var lexSort = function(a, b) {
+            if(a[0] === b[0]) {
+                if(a[1] === b[1]) {
+                    if(a[2] === b[2]) {
+                        return 0;
+                    }
+                    else return (a[2] < b[2]) ? -1 : 1;
+                }
+                else return (a[1] < b[1]) ? -1 : 1;
+            }
+            else return (a[0] < b[0]) ? -1 : 1;
+        }
+
+        //Sorts level by hkey
+        var hkeySort = function(a, b) {
+            if(a[0] === b[0]) return 0;
+            else return (a[0] < b[0]) ? -1 : 1;
+        }
+
+        //Updates cnt values in sorted buffer
+        var reCnt = function(B) {
+            var prevW = "";
+            var prevOp = -1;
+            var prevCnt = -1;
+            for(var i = 0; i < B.length; i++) {
+                if(B[i][0] === prevW) {
+                    if((B[i][1] === B[i-1][1]) && (B[i][2] + prevOp === 1)) {
+                        prevOp = -1;
+                        prevCnt--;
+                        if(prevCnt === -1) prevW = "";
+                        B[i-1] = B[i] = null;
+                    }
+                    else {
+                        B[i][3] = ++prevCnt;
+                        prevOp = B[i][2];
+                    }
+                }
+                else {
+                    B[i][3] = prevCnt = 0;
+                    prevW = B[i][0];
+                    prevOp = B[i][2];
+                }
+            }
+            return B;
+        }
+
+        //Decrypts table entry to return (w, id, op, cnt)
+        var decrypt = function(c2) {
+
+        }
+
+        //Generates a new key
+        var newKey = function() {
+
+        }
+
+        //Encodes a tuple (w, id, op, cnt) and returns a tuple (hkey, c1, c2)
+        var encodeEntry = function(tuple) {
+
+        }
+    </script>
 </body>
 </html>
