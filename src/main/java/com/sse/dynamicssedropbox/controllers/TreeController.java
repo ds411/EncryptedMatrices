@@ -6,7 +6,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.math.BigInteger;
-import java.util.List;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Set;
 
 @RestController
@@ -22,7 +23,7 @@ public class TreeController {
     }
 
     @PostMapping(value = "/update", consumes = "application/json", produces = "application/json")
-    public List<Value[]> update(@RequestBody BigInteger[] values) {
+    public ArrayList<Collection<Value>> update(@RequestBody BigInteger[] values) {
         if(!tree.update(values)) return tree.levelsToRebuild();
         return null;
     }

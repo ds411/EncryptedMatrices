@@ -11,4 +11,8 @@ public class Value {
         this.c1 = c1;
         this.c2 = c2;
     }
+
+    public String toString() {
+        return String.format("(%s, %s, %s)", hkey.toString(), c1.toString(), c2.toString());
+    }
 }
