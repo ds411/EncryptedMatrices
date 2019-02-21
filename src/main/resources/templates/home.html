@@ -41,97 +41,133 @@
         //Searches keyword
         var search = function(w) {
             tokens = {};
-            for(var k in keys.keys) {
+            for(var k in Object.keys(keys)) {
                 if(k!=='esk') {
                     tokens[k] = sjcl.codec.hex.fromBits(token(k, w));
                 }
             }
             var req = new XMLHttpRequest();
 
-            req.onload = function(e) {
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
 
+                }
             };
 
-            req.open("POST", "/api/search");
+            req.open("POST", "/api/search", false);
+            req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
             req.send(tokens);
         };
 
         //Updates index
         var update = function(v, id, op) {
-            var req;
             v.forEach(function(w) {
-                if (!needsRebuild()) {
-                    keys[0] = newKey();
-                    var entry = encodeEntry(0, [w, id, op, 0]);
-                    req = new XMLHttpRequest();
+                var req = new XMLHttpRequest();
 
-                    req.onload = function(e) {
+                req.onreadystatechange = function(e) {
+                    if(req.readyState === 4 && req.status === 200) {
+                        if (req.response === 'true') {
+                            rebuild(w, id, op);
+                        }
+                        else {
+                            insert(w, id, op);
+                        }
+                    }
+                };
 
-                    };
-
-                    req.open("POST", "/api/update");
-                    req.send(entry);
-                }
-                else {
-                    var T = fetchTable();
-                    var l = fetchLevel();
-                    var lev = simpleRebuild(T, l, w, id, op);
-
-                    req = new XMLHttpRequest();
-
-                    req.onload = function(e) {
-
-                    };
-
-                    req.open("POST", "/api/rebuild");
-                    req.send(lev);
-                }
+                req.open("GET", "/api/needsRebuild", false);
+                req.send();
             });
+        };
+
+        var insert = function(w, id, op) {
+            keys[0] = newKey();
+            var entry = encodeEntry(0, [w, id, op, 0]);
+            var req = new XMLHttpRequest();
+
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    console.log("insert " + w);
+                }
+            };
+
+            req.open("POST", "/api/update", false);
+            req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+            req.send(JSON.stringify(entry));
+        };
+
+        var rebuild = function(w, id, op) {
+            var T = fetchTable();
+            var l = fetchLevel();
+            var lev = simpleRebuild(fetchTable(), fetchLevel(), w, id, op);
+
+            var req = new XMLHttpRequest();
+
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    console.log("rebuild "+w);
+                }
+            };
+
+            req.open("POST", "/api/rebuild", false);
+            req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+            req.send(JSON.stringify(lev));
         };
 
         //Returns whether table must be rebuilt or not
         var needsRebuild = function() {
             var req = new XMLHttpRequest();
 
-            req.onload = function(e) {
-                return req.response === 1;
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    return req.response === 'true';
+                }
             };
 
-            req.open("GET", "/api/needsRebuild");
+            req.open("GET", "/api/needsRebuild", false);
             req.send();
+            return req.onreadystatechange();
         };
 
         //Fetches table up to first empty level from server
         var fetchTable = function() {
             var req = new XMLHttpRequest();
 
-            req.onload = function(e) {
-                return req.response;
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    return JSON.parse(req.response);
+                }
             };
 
-            req.open("GET", "/api/table");
+            req.open("GET", "/api/table", false);
             req.send();
+            return req.onreadystatechange();
         };
 
         //Fetches first empty level from server
         var fetchLevel = function() {
             var req = new XMLHttpRequest();
 
-            req.onload = function(e) {
-                return req.response;
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    return req.response;
+                }
             };
 
-            req.open("GET", "/api/level");
+            req.open("GET", "/api/level", false);
             req.send();
+            return req.onreadystatechange();
         };
 
         //Rebuilds first l-1 levels of table
         var simpleRebuild = function(T, l, w, id, op) {
             var B = [];
             B[0] = [w, id, op, 0];
-            T.forEach(function(tuple) {
-               B.push(decrypt(tuple[2]));
-            });
+            console.log(T);
+            for(var key in Object.keys(T)) {
+               B.push(decrypt(T[key]['c2']));
+            }
+            console.log(B);
             B.sort(lexSort);
             B = reCnt(B);
             keys[l] = newKey();
@@ -140,6 +176,7 @@
                 lev.push(encodeEntry(l, tuple));
             });
             lev.sort(hkeySort);
+            console.log(lev);
             return lev;
         };
 
@@ -192,7 +229,7 @@
 
         //Decrypts table entry to return (w, id, op, cnt)
         var decrypt = function(c2) {
-            return JSON.parse(sjcl.codec.utf8String.fromBits(sjcl.mode.gcm.decrypt(prf, sjcl.codec.hex.toBits(c2), iv)));
+            return JSON.parse(sjcl.codec.utf8String.fromBits(sjcl.mode.gcm.decrypt(prf, sjcl.codec.base64.toBits(c2), iv)));
         };
 
         var token = function(l, w) {
@@ -202,8 +239,8 @@
 
         //Encodes a tuple (w, id, op, cnt) and returns a tuple (hkey, c1, c2)
         var encodeEntry = function(l, tuple) {
-            var token = token(l, tuple[0]);
-            var hmac = new sjcl.misc.hmac(token);
+            var tkn = token(l, tuple[0]);
+            var hmac = new sjcl.misc.hmac(tkn);
             var hmacBits = bite([0, tuple[2], tuple[3]]);
             var hkey = hmac.encrypt(hmacBits);
             hkey = sjcl.bitArray.extract(hkey, 0, hkey.length);
@@ -211,7 +248,7 @@
             var c1 = hmac.encrypt(c1Bits);
             c1 = tuple[1] ^ sjcl.bitArray.extract(c1, 0, c1.length);
             var c2 = sjcl.mode.gcm.encrypt(prf, bite(tuple), iv);
-            c2 = sjcl.codec.hex.fromBits(c2, 0, c2.length);
+            c2 = sjcl.codec.base64.fromBits(c2);
             return [hkey, c1, c2];
         };
 

@@ -11,14 +11,14 @@ public class Tree {
     private final short DEL = 1;
 
     public Tree() {
-        levels = new ArrayList<>(1);
+        levels = new ArrayList<>();
         levels.add(new TreeLevel(0));
     }
 
-    public Set<BigInteger> search(BigInteger[] tokens) {
+    public Set<String> search(String[] tokens) {
         assert tokens.length == levels.size();
 
-        HashSet<BigInteger> idSet = new HashSet<>();
+        HashSet<String> idSet = new HashSet<>();
 
         for(int i = 0; i < tokens.length; i++) {
             idSet.add(levels.get(i).lookup(tokens[i], ADD));
@@ -32,22 +32,27 @@ public class Tree {
         return idSet;
     }
 
-    public boolean update(BigInteger[] values) {
+    public boolean update(String[] values) {
+        System.out.println("Updating...");
         if (!levels.get(0).isEmpty()) return false;
 
         levels.get(0).put(values[0], new Value(values[0], values[1], values[2]));
         return true;
     }
 
-    public void simpleRebuild(BigInteger[][] values) {
+    public void simpleRebuild(Value[] values) {
+        System.out.println("Rebuilding...");
         int level = firstEmptyLevel();
         for(int i = 0; i < level; i++) {
             levels.set(i, new TreeLevel(i));
         }
         TreeLevel newLevel = new TreeLevel(level);
-        for(int i = 0; i < newLevel.size(); i++) {
-            newLevel.put(values[i][0], new Value(values[i][0], values[i][1], values[i][2]));
+        System.out.println(newLevel.MAX);
+        for(int i = 0; i < newLevel.MAX; i++) {
+            newLevel.put(values[i].hkey, values[i]);
         }
+        if(level == levels.size()) levels.add(newLevel);
+        else levels.set(level, newLevel);
     }
 
     public int firstEmptyLevel() {
@@ -57,13 +62,14 @@ public class Tree {
         return levels.size();
     }
 
-    public ArrayList<Collection<Value>> levelsToRebuild() {
-        ArrayList<Collection<Value>> rows = new ArrayList<>();
+    public Value[] levelsToRebuild() {
+        ArrayList<Value> rows = new ArrayList<>();
         for(int i = 0; i < levels.size(); i++) {
-            if(levels.get(i).isEmpty()) return rows;
-            rows.add(levels.get(i).values());
+            if(levels.get(i).isEmpty()) break;
+            rows.addAll(levels.get(i).values());
         }
-        return rows;
+        Value[] arr = new Value[rows.size()];
+        return rows.toArray(arr);
     }
 
     public String toString() {

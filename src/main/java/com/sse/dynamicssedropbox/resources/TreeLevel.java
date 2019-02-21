@@ -1,29 +1,29 @@
 package com.sse.dynamicssedropbox.resources;
 
+import org.apache.commons.collections4.map.FixedSizeMap;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
-public class TreeLevel extends LinkedHashMap<BigInteger, Value> {
+public class TreeLevel extends HashMap<String, Value> {
 
-    private final int maxSize;
+    final int MAX;
 
     public TreeLevel(int level) {
-        maxSize = (int)Math.pow(2, level);
+        super((int)Math.pow(2, level), 1);
+        MAX = (int)Math.pow(2, level);
     }
 
-    @Override
-    protected boolean removeEldestEntry(Map.Entry<BigInteger, Value> eldest) {
-        return size() > maxSize;
+    public void putV(String key, Value value) {
+        if(MAX >= size()) return;
+        put(key, value);
     }
 
-    public BigInteger lookup(BigInteger token, short op) {
+    public String lookup(String token, short op) {
         /*try {
             Mac hmac = Mac.getInstance("HmacSHA256");
             SecretKeySpec keySpec = new SecretKeySpec(token.toByteArray(), "HmacSHA256");
