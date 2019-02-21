@@ -43,7 +43,7 @@
             tokens = {};
             for(var k in Object.keys(keys)) {
                 if(k!=='esk') {
-                    tokens[k] = sjcl.codec.hex.fromBits(token(k, w));
+                    tokens[k] = base64encode(token(k, w));
                 }
             }
             var req = new XMLHttpRequest();
@@ -229,7 +229,7 @@
 
         //Decrypts table entry to return (w, id, op, cnt)
         var decrypt = function(c2) {
-            return JSON.parse(sjcl.codec.utf8String.fromBits(sjcl.mode.gcm.decrypt(prf, sjcl.codec.base64.toBits(c2), iv)));
+            return JSON.parse(sjcl.codec.utf8String.fromBits(sjcl.mode.gcm.decrypt(prf, base64decode(c2), iv)));
         };
 
         var token = function(l, w) {
@@ -243,12 +243,14 @@
             var hmac = new sjcl.misc.hmac(tkn);
             var hmacBits = bite([0, tuple[2], tuple[3]]);
             var hkey = hmac.encrypt(hmacBits);
-            hkey = sjcl.bitArray.extract(hkey, 0, hkey.length);
+            hkey = base64encode(hkey);
             var c1Bits = bite([1, tuple[2], tuple[3]]);
             var c1 = hmac.encrypt(c1Bits);
-            c1 = tuple[1] ^ sjcl.bitArray.extract(c1, 0, c1.length);
+            console.log(c1);
+            console.log(tuple[1]);
+            c1 = base64encode(bite(tuple[1] ^ sjcl.bitArray.extract(c1, 0, c1.length)));
             var c2 = sjcl.mode.gcm.encrypt(prf, bite(tuple), iv);
-            c2 = sjcl.codec.base64.fromBits(c2);
+            c2 = base64encode(c2);
             return [hkey, c1, c2];
         };
 
@@ -257,6 +259,13 @@
             return sjcl.codec.utf8String.toBits(JSON.stringify(item));
         };
 
+        var base64encode = function(b) {
+            return sjcl.codec.base64.fromBits(b);
+        };
+
+        var base64decode = function(b) {
+            return sjcl.codec.base64.toBits(b);
+        };
 
     </script>
 </body>
