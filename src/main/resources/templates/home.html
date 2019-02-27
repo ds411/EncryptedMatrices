@@ -12,7 +12,7 @@
     <div>
         <form id="upload">
             <p>
-                <input id="fileInput" type="file" accept="text/plain">
+                <input id="fileInput" type="file">
             </p>
             <p>
                 <button onclick="readWords(event)">Upload</button>
@@ -43,7 +43,6 @@
         };
 
         var password = "";
-        var wordSet = {};
         var keys = {};
         keys['esk'] = newKey();
         var prf = new sjcl.cipher.aes(keys['esk']);
@@ -65,6 +64,7 @@
 
             var fileReader = new FileReader();
             fileReader.onloadend = function() {
+                var wordSet = {};
                 var text = fileReader.result;
                 var plaintext = sjcl.codec.utf8String.toBits(text);
                 var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
@@ -75,11 +75,21 @@
                 id = sjcl.codec.base32.fromBits(id);
                 console.log(id);
                 //var id = base64encode(sjcl.hash.sha256(sjcl.codec.utf8String.toBits(fileInput.value)));
-                text = text.trim();
-                text.split(/[\s]+/).forEach(function(element) {
-                   wordSet[element] = true;
-                   //base64encode(sjcl.mode.gcm.encrypt(prf, sjcl.codec.utf8String.toBits(element), iv))
-                });
+                if(file.type === 'text/plain') {
+                    text = text.trim();
+                    text.split(/[\s]+/).forEach(function(element) {
+                        wordSet[element] = true;
+                        //base64encode(sjcl.mode.gcm.encrypt(prf, sjcl.codec.utf8String.toBits(element), iv))
+                    });
+                }
+                else {
+                    text = file.name;
+                    text = text.substring(0, text.lastIndexOf('.'));
+                    text = text.split(/[\s]+/).forEach(function(element) {
+                        wordSet[element] = true;
+                    });
+                    console.log(wordSet);
+                }
                 uploadFile(ciphertext, id);
                 update(Object.keys(wordSet), id, 0);
             };
