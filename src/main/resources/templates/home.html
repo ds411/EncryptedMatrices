@@ -6,57 +6,124 @@
     <script src="/sjcl.js" th:src="@{/sjcl.js}"></script>
 </head>
 <body>
-    <input type="file" accept="text/plain" onchange="readWords(event)">
+    <p>
+        <input id="password" type="password" placeholder="Password" oninput="setPassword(event)">
+    </p>
+    <div>
+        <form id="upload">
+            <p>
+                <input id="fileInput" type="file" accept="text/plain">
+            </p>
+            <p>
+                <button onclick="readWords(event)">Upload</button>
+            </p>
+        </form>
+    </div>
+    <div>
+        <form id="search">
+            <p>
+                <input id="query" type="text" placeholder="Search Query">
+            </p>
+            <p>
+                <button onclick="doSearch(event)">Search</button>
+            </p>
+        </form>
+    </div>
+    <div>
+        <ul id="results">
+
+        </ul>
+    </div>
+
+
     <script>
         //Generates a new key
         var newKey = function() {
             return sjcl.random.randomWords(8);
         };
 
+        var password = "";
         var wordSet = {};
         var keys = {};
         keys['esk'] = newKey();
         var prf = new sjcl.cipher.aes(keys['esk']);
         var iv = newKey(); //will make dynamic later
 
+        //Sets the user password and generates esk key
+        var setPassword = function(event) {
+            password = event.target.value;
+            keys['esk'] = sjcl.misc.pbkdf2(password, "", 50000);
+            prf = new sjcl.cipher.aes(keys['esk']);
+        };
+
         //Generates word set from file
         var readWords = function(event) {
-            var fileInput = event.target;
+            event.preventDefault();
+            var fileInput = document.getElementById("fileInput");
             var file = fileInput.files[0];
 
+
             var fileReader = new FileReader();
-            fileReader.onload = function() {
+            fileReader.onloadend = function() {
                 var text = fileReader.result;
+                var plaintext = sjcl.codec.utf8String.toBits(text);
+                var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
+                ciphertext = base64encode(ciphertext);
+                var id = file.name;
+                id = sjcl.codec.utf8String.toBits(id);
+                id = sjcl.hash.sha256.hash(id);
+                id = base64encode(id);
+                //var id = base64encode(sjcl.hash.sha256(sjcl.codec.utf8String.toBits(fileInput.value)));
                 text = text.trim();
-                text.split(" ").forEach(function(element) {
+                text.split(/[\s]+/).forEach(function(element) {
                    wordSet[element] = true;
+                   //base64encode(sjcl.mode.gcm.encrypt(prf, sjcl.codec.utf8String.toBits(element), iv))
                 });
+                uploadFile(ciphertext, id);
+                update(Object.keys(wordSet), id, 0);
             };
 
             fileReader.readAsText(file);
+        };
 
-            console.log(wordSet);
+        var uploadFile = function(ciphertext, id) {
+            var formdata = new FormData();
+            formdata.append('file', new File([new Blob([ciphertext])], id));
+            var req = new XMLHttpRequest();
+            req.open("POST", "/api/upload");
+            req.send(formdata);
+        };
+
+        //Performs search on form input
+        var doSearch = function() {
+            event.preventDefault();
+            var query = document.getElementById("query").value;
+            search(query);
         };
 
         //Searches keyword
         var search = function(w) {
-            tokens = {};
-            for(var k in Object.keys(keys)) {
-                if(k!=='esk') {
-                    tokens[k] = base64encode(token(k, w));
+            var tokens = {};
+            var k = Object.keys(keys);
+            for(var i = 0; i < k.length; i++) {
+                if(k[i] !== 'esk') {
+                    tokens[k[i]] = token(k[i], w);
+                    console.log(k[i]);
+                    console.log(tokens[i]);
                 }
             }
+
             var req = new XMLHttpRequest();
 
             req.onreadystatechange = function(e) {
                 if(req.readyState === 4 && req.status === 200) {
-
+                    console.log(req.response);
                 }
             };
 
             req.open("POST", "/api/search", false);
             req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-            req.send(tokens);
+            req.send(JSON.stringify(tokens));
         };
 
         //Updates index
@@ -87,7 +154,6 @@
 
             req.onreadystatechange = function(e) {
                 if(req.readyState === 4 && req.status === 200) {
-                    console.log("insert " + w);
                 }
             };
 
@@ -105,7 +171,6 @@
 
             req.onreadystatechange = function(e) {
                 if(req.readyState === 4 && req.status === 200) {
-                    console.log("rebuild "+w);
                 }
             };
 
@@ -163,11 +228,9 @@
         var simpleRebuild = function(T, l, w, id, op) {
             var B = [];
             B[0] = [w, id, op, 0];
-            console.log(T);
             for(var key in Object.keys(T)) {
                B.push(decrypt(T[key]['c2']));
             }
-            console.log(B);
             B.sort(lexSort);
             B = reCnt(B);
             keys[l] = newKey();
@@ -176,7 +239,6 @@
                 lev.push(encodeEntry(l, tuple));
             });
             lev.sort(hkeySort);
-            console.log(lev);
             return lev;
         };
 
@@ -234,7 +296,9 @@
 
         var token = function(l, w) {
             var levelPrf = new sjcl.cipher.aes(keys[l]);
-            return sjcl.mode.gcm.encrypt(levelPrf, sjcl.hash.sha256.hash(w), iv);
+            var tkn = sjcl.mode.gcm.encrypt(levelPrf, sjcl.hash.sha256.hash(w), iv);
+            console.log(base64encode(tkn));
+            return base64encode(tkn);
         };
 
         //Encodes a tuple (w, id, op, cnt) and returns a tuple (hkey, c1, c2)
@@ -244,10 +308,9 @@
             var hmacBits = bite([0, tuple[2], tuple[3]]);
             var hkey = hmac.encrypt(hmacBits);
             hkey = base64encode(hkey);
+            console.log(hkey);
             var c1Bits = bite([1, tuple[2], tuple[3]]);
             var c1 = hmac.encrypt(c1Bits);
-            console.log(c1);
-            console.log(tuple[1]);
             c1 = base64encode(bite(tuple[1] ^ sjcl.bitArray.extract(c1, 0, c1.length)));
             var c2 = sjcl.mode.gcm.encrypt(prf, bite(tuple), iv);
             c2 = base64encode(c2);
@@ -256,6 +319,7 @@
 
         //Converts an item to a bitArray
         var bite = function(item) {
+            console.log(JSON.stringify(item));
             return sjcl.codec.utf8String.toBits(JSON.stringify(item));
         };
 

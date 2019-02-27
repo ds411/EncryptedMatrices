@@ -15,16 +15,16 @@ public class Tree {
         levels.add(new TreeLevel(0));
     }
 
-    public Set<String> search(String[] tokens) {
-        assert tokens.length == levels.size();
+    public Set<String> search(HashMap<Integer, String> tokens) {
+        assert tokens.size() == levels.size();
 
         HashSet<String> idSet = new HashSet<>();
 
-        for(int i = 0; i < tokens.length; i++) {
-            idSet.add(levels.get(i).lookup(tokens[i], ADD));
+        for(int i = 0; i < tokens.size(); i++) {
+            idSet.add(levels.get(i).lookup(tokens.get(i), ADD));
         }
-        for(int i = 0; i < tokens.length; i++) {
-            idSet.remove(levels.get(i).lookup(tokens[i], DEL));
+        for(int i = 0; i < tokens.size(); i++) {
+            idSet.remove(levels.get(i).lookup(tokens.get(i), DEL));
         }
 
         idSet.remove(null);
