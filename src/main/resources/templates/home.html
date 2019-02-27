@@ -72,7 +72,8 @@
                 var id = file.name;
                 id = sjcl.codec.utf8String.toBits(id);
                 id = sjcl.hash.sha256.hash(id);
-                id = base64encode(id);
+                id = sjcl.codec.base32.fromBits(id);
+                console.log(id);
                 //var id = base64encode(sjcl.hash.sha256(sjcl.codec.utf8String.toBits(fileInput.value)));
                 text = text.trim();
                 text.split(/[\s]+/).forEach(function(element) {
@@ -87,8 +88,9 @@
         };
 
         var uploadFile = function(ciphertext, id) {
+            console.log(id);
             var formdata = new FormData();
-            formdata.append('file', new File([new Blob([ciphertext])], id));
+            formdata.append('file', new File([ciphertext], id, {type:'text/plain'}));
             var req = new XMLHttpRequest();
             req.open("POST", "/api/upload");
             req.send(formdata);

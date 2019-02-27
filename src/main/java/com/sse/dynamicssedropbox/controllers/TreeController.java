@@ -55,13 +55,14 @@ public class TreeController {
     @PostMapping(value = "/upload")
     public boolean upload(@RequestParam(value = "file") MultipartFile file) {
         if(!file.isEmpty()) {
-            String uploadDir = "/uploads";
-            String dir = request.getServletContext().getRealPath(uploadDir); //saves to temp directory, can specify permanent location instead
-            System.out.println(dir);
-            System.out.println();
-            String filename = file.getName();
+            String uploadDir = "/uploads/";
+            String dirName = request.getServletContext().getRealPath(uploadDir); //saves to temp directory, can specify permanent location instead
+            File dir = new File(dirName);
+            if(!dir.exists()) dir.mkdir();
+            String filename = file.getOriginalFilename();
+            System.out.println(filename);
             try {
-                file.transferTo(new File(dir + filename));
+                file.transferTo(new File(dir + "/" + filename));
                 return true;
             }
             catch (IOException ex) {
