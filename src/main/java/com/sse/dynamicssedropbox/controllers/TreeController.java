@@ -9,9 +9,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 @RestController
@@ -70,6 +74,22 @@ public class TreeController {
             }
         }
         return false;
+    }
+
+    @GetMapping(value = "/download/{filename}")
+    public void download(HttpServletRequest request, HttpServletResponse response, @PathVariable String filename) {
+        String uploadDir = "/uploads/";
+        String dirName = request.getServletContext().getRealPath(uploadDir);
+        Path filepath = Paths.get(dirName, filename);
+        if(Files.exists(filepath)) {
+            response.setContentType("application/octet-stream");
+            response.addHeader("Content-Disposition", "attachment; filename=" + filename);
+            try {
+                Files.copy(filepath, response.getOutputStream());
+                response.getOutputStream().flush();
+            }
+            catch(IOException ex) {}
+        }
     }
 
     @GetMapping(value = "/table", produces = "application/json")
