@@ -15,6 +15,7 @@ public class Tree {
         levels.add(new TreeLevel(0));
     }
 
+    //Searches for file IDs by token list
     public Set<String> search(HashMap<Integer, String> tokens) {
         assert tokens.size() == levels.size();
 
@@ -32,6 +33,7 @@ public class Tree {
         return idSet;
     }
 
+    //Updates tree with new values
     public boolean update(String[] values) {
         System.out.println("Updating...");
         if (!levels.get(0).isEmpty()) return false;
@@ -40,6 +42,7 @@ public class Tree {
         return true;
     }
 
+    //Rebuilds tree from list of values
     public void simpleRebuild(Value[] values) {
         System.out.println("Rebuilding...");
         int level = firstEmptyLevel();
@@ -55,6 +58,7 @@ public class Tree {
         else levels.set(level, newLevel);
     }
 
+    //Finds first empty level in tree
     public int firstEmptyLevel() {
         for(int i = 0; i < levels.size(); i++) {
             if(levels.get(i).isEmpty()) return i;
@@ -62,6 +66,7 @@ public class Tree {
         return levels.size();
     }
 
+    //Returns levels before first empty level
     public Value[] levelsToRebuild() {
         ArrayList<Value> rows = new ArrayList<>();
         for(int i = 0; i < levels.size(); i++) {
@@ -72,7 +77,7 @@ public class Tree {
         return rows.toArray(arr);
     }
 
-    public String toString() {
-        return levels.toString();
+    public ArrayList<TreeLevel> getLevels() {
+        return levels;
     }
 }

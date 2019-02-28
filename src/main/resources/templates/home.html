@@ -75,12 +75,10 @@
                 id = sjcl.hash.sha256.hash(id);
                 id = sjcl.codec.base32.fromBits(id);
                 console.log(id);
-                //var id = base64encode(sjcl.hash.sha256(sjcl.codec.utf8String.toBits(fileInput.value)));
                 if(file.type === 'text/plain') {
                     text = text.trim();
                     text.split(/[\s]+/).forEach(function(element) {
                         wordSet[element] = true;
-                        //base64encode(sjcl.mode.gcm.encrypt(prf, sjcl.codec.utf8String.toBits(element), iv))
                     });
                 }
                 else {
@@ -95,7 +93,7 @@
                 update(Object.keys(wordSet), id, 0);
             };
 
-            if(file.type === 'plain/text') {
+            if(file.type === 'text/plain') {
                 fileReader.readAsText(file);
             }
             else {
@@ -103,7 +101,7 @@
             }
         };
 
-        var download = function (filename) {
+        var downloadFile = function (filename) {
             var req = new XMLHttpRequest();
 
             req.onreadystatechange = function(e) {
@@ -225,21 +223,6 @@
             req.open("POST", "/api/rebuild", false);
             req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
             req.send(JSON.stringify(lev));
-        };
-
-        //Returns whether table must be rebuilt or not
-        var needsRebuild = function() {
-            var req = new XMLHttpRequest();
-
-            req.onreadystatechange = function(e) {
-                if(req.readyState === 4 && req.status === 200) {
-                    return req.response === 'true';
-                }
-            };
-
-            req.open("GET", "/api/needsRebuild", false);
-            req.send();
-            return req.onreadystatechange();
         };
 
         //Fetches table up to first empty level from server

@@ -21,11 +21,13 @@ public class TreeLevel extends HashMap<String, Value> {
         MAX = (int)Math.pow(2, level);
     }
 
+    //Puts a value tuple in the tree unless the size of the tree = max size
     public void putV(String key, Value value) {
         if(MAX >= size()) return;
         put(key, value);
     }
 
+    //Looks for document ID by token
     public String lookup(String token, short op) {
         try {
             Base64.Decoder dec = Base64.getDecoder();
