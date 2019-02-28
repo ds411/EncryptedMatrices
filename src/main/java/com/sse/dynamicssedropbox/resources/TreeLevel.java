@@ -37,7 +37,7 @@ public class TreeLevel extends HashMap<String, Value> {
             String hkeyJson, hkey, c1Json, c1;
             Value value;
             for (int i = 0; i < MAX; i++) {
-                hkeyJson = String.format("[0, %d, %d]", op, i);
+                hkeyJson = String.format("[0,%d,%d]", op, i);
                 hkeyBytes = hmac.doFinal(hkeyJson.getBytes());
                 hkey = Base64.getEncoder().encodeToString(hkeyBytes);
                 System.out.println(hkeyJson + " => " + hkey);

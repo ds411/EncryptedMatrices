@@ -66,6 +66,7 @@
             fileReader.onloadend = function() {
                 var wordSet = {};
                 var text = fileReader.result;
+                console.log(text);
                 var plaintext = sjcl.codec.utf8String.toBits(text);
                 var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
                 ciphertext = base64encode(ciphertext);
@@ -90,17 +91,52 @@
                     });
                     console.log(wordSet);
                 }
-                uploadFile(ciphertext, id);
+                uploadFile(ciphertext, id, file.type);
                 update(Object.keys(wordSet), id, 0);
             };
 
-            fileReader.readAsText(file);
+            if(file.type === 'plain/text') {
+                fileReader.readAsText(file);
+            }
+            else {
+                fileReader.readAsDataURL(file);
+            }
         };
 
-        var uploadFile = function(ciphertext, id) {
+        var download = function (filename) {
+            var req = new XMLHttpRequest();
+
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    var blob = req.response;
+                    var reader = new FileReader();
+
+                    reader.onloadend = function() {
+                        var ciphertext = reader.result;
+                        ciphertext = base64decode(ciphertext);
+                        var plaintext = sjcl.mode.gcm.decrypt(prf, ciphertext, iv);
+                        plaintext = sjcl.codec.utf8String.fromBits(plaintext);
+                        console.log(plaintext);
+                        var file = new File([plaintext], filename);
+                        var link = document.createElement('a');
+                        link.download = true;
+                        link.href = URL.createObjectURL(file);
+                        link.click();
+                    };
+
+                    reader.readAsText(blob);
+                }
+            };
+
+            req.open("GET", "/api/download/" + filename);
+            req.responseType = 'blob';
+            req.send();
+        };
+
+        var uploadFile = function(ciphertext, id, filetype) {
             console.log(id);
             var formdata = new FormData();
-            formdata.append('file', new File([ciphertext], id, {type:'text/plain'}));
+            formdata.append('file', new File([new Blob([ciphertext])], id, {type:filetype}));
             var req = new XMLHttpRequest();
             req.open("POST", "/api/upload");
             req.send(formdata);
