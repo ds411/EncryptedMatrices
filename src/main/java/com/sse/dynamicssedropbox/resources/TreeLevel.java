@@ -1,6 +1,6 @@
 package com.sse.dynamicssedropbox.resources;
 
-import org.apache.commons.collections4.map.FixedSizeMap;
+import org.apache.commons.codec.binary.Base32;
 import org.yaml.snakeyaml.util.ArrayUtils;
 
 import javax.crypto.Mac;
@@ -31,6 +31,7 @@ public class TreeLevel extends HashMap<String, Value> {
         try {
             Base64.Decoder dec = Base64.getDecoder();
             Base64.Encoder enc = Base64.getEncoder();
+
             Mac hmac = Mac.getInstance("HmacSHA256");
             System.out.println(token);
             SecretKeySpec keySpec = new SecretKeySpec(dec.decode(token), "HmacSHA256");
@@ -48,11 +49,11 @@ public class TreeLevel extends HashMap<String, Value> {
                     c1Bytes = hmac.doFinal(c1Json.getBytes());
                     valuec1Bytes = dec.decode(value.c1);
                     System.out.println(value.c1);
-                    int len = valuec1Bytes.length > c1Bytes.length ? c1Bytes.length : valuec1Bytes.length;
-                    for(int j = 0; j < len; j++) {
-                        valuec1Bytes[j] = (byte)(valuec1Bytes[j] ^ c1Bytes[j]);
+                    byte[] arr = new byte[32];
+                    for(int j = 0; j < 32; j++) {
+                        arr[j] ^= (byte)(valuec1Bytes[j] ^ c1Bytes[j]);
                     }
-                    return enc.encodeToString(valuec1Bytes);
+                    return new Base32().encodeAsString(arr);
                 }
             }
         }

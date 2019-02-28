@@ -75,6 +75,7 @@
                 var id = file.name;
                 id = sjcl.codec.utf8String.toBits(id);
                 id = sjcl.hash.sha256.hash(id);
+                console.log(sjcl.codec.bytes.fromBits(id));
                 id = sjcl.codec.base32.fromBits(id);
                 console.log(id);
                 if(file.type === 'text/plain') {
@@ -348,7 +349,7 @@
             var c1 = hmac.encrypt(c1Bits);
             var id = bite(tuple[1]);
             for(var i = 0; i < Math.max(id.length, c1.length); i++) {
-                c1[i] ^= id[i];
+                c1[i] = (c1[i] || 0) ^ id[i];
             }
             c1 = base64encode(c1);
             console.log(tuple[1]);
