@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Dynamic SSE Dropbox</title>
     <script src="/sjcl.js" th:src="@{/sjcl.js}"></script>
+    <script src="/codecBytes.js" th:src="@{/codecBytes.js}"></script>
 </head>
 <body>
     <p>
@@ -52,6 +53,7 @@
         var setPassword = function(event) {
             password = event.target.value;
             keys['esk'] = sjcl.misc.pbkdf2(password, "", 50000);
+            iv = sjcl.misc.pbkdf2(password, "", 50001);
             prf = new sjcl.cipher.aes(keys['esk']);
         };
 
@@ -154,8 +156,6 @@
             for(var i = 0; i < k.length; i++) {
                 if(k[i] !== 'esk') {
                     tokens[k[i]] = token(k[i], w);
-                    console.log(k[i]);
-                    console.log(tokens[i]);
                 }
             }
 
@@ -164,6 +164,9 @@
             req.onreadystatechange = function(e) {
                 if(req.readyState === 4 && req.status === 200) {
                     console.log(req.response);
+                    JSON.parse(req.response).forEach(function(string) {
+
+                    });
                 }
             };
 
@@ -259,6 +262,7 @@
         var simpleRebuild = function(T, l, w, id, op) {
             var B = [];
             B[0] = [w, id, op, 0];
+            console.log(T);
             for(var key in Object.keys(T)) {
                B.push(decrypt(T[key]['c2']));
             }
@@ -335,22 +339,27 @@
         //Encodes a tuple (w, id, op, cnt) and returns a tuple (hkey, c1, c2)
         var encodeEntry = function(l, tuple) {
             var tkn = token(l, tuple[0]);
-            var hmac = new sjcl.misc.hmac(tkn);
+            var hmac = new sjcl.misc.hmac(base64decode(tkn), sjcl.hash.sha256);
             var hmacBits = bite([0, tuple[2], tuple[3]]);
             var hkey = hmac.encrypt(hmacBits);
             hkey = base64encode(hkey);
             console.log(hkey);
             var c1Bits = bite([1, tuple[2], tuple[3]]);
             var c1 = hmac.encrypt(c1Bits);
-            c1 = base64encode(bite(tuple[1] ^ sjcl.bitArray.extract(c1, 0, c1.length)));
+            var id = bite(tuple[1]);
+            for(var i = 0; i < Math.max(id.length, c1.length); i++) {
+                c1[i] ^= id[i];
+            }
+            c1 = base64encode(c1);
+            console.log(tuple[1]);
             var c2 = sjcl.mode.gcm.encrypt(prf, bite(tuple), iv);
             c2 = base64encode(c2);
+            console.log(c1);
             return [hkey, c1, c2];
         };
 
         //Converts an item to a bitArray
         var bite = function(item) {
-            console.log(JSON.stringify(item));
             return sjcl.codec.utf8String.toBits(JSON.stringify(item));
         };
 

@@ -5,6 +5,7 @@ import org.yaml.snakeyaml.util.ArrayUtils;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -21,35 +22,35 @@ public class TreeLevel extends HashMap<String, Value> {
         MAX = (int)Math.pow(2, level);
     }
 
-    //Puts a value tuple in the tree unless the size of the tree = max size
     public void putV(String key, Value value) {
         if(MAX >= size()) return;
         put(key, value);
     }
 
-    //Looks for document ID by token
     public String lookup(String token, short op) {
         try {
             Base64.Decoder dec = Base64.getDecoder();
             Base64.Encoder enc = Base64.getEncoder();
             Mac hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec keySpec = new SecretKeySpec(Base64.getDecoder().decode(token), "HmacSHA256");
+            System.out.println(token);
+            SecretKeySpec keySpec = new SecretKeySpec(dec.decode(token), "HmacSHA256");
             hmac.init(keySpec);
             byte[] hkeyBytes, c1Bytes, valuec1Bytes;
-            String hkeyJson, hkey, c1Json, c1;
+            String hkeyJson, hkey, c1Json;
             Value value;
             for (int i = 0; i < MAX; i++) {
                 hkeyJson = String.format("[0,%d,%d]", op, i);
                 hkeyBytes = hmac.doFinal(hkeyJson.getBytes());
-                hkey = Base64.getEncoder().encodeToString(hkeyBytes);
-                System.out.println(hkeyJson + " => " + hkey);
+                hkey = enc.encodeToString(hkeyBytes);
                 value = get(hkey);
                 if(value != null) {
                     c1Json = String.format("[0,%d,%d]", op, i);
-                    c1Bytes = hmac.doFinal(c1Json.getBytes(StandardCharsets.UTF_8));
+                    c1Bytes = hmac.doFinal(c1Json.getBytes());
                     valuec1Bytes = dec.decode(value.c1);
-                    for(int j = 0; j < c1Bytes.length; j++) {
-                        valuec1Bytes[j] ^= c1Bytes[j];
+                    System.out.println(value.c1);
+                    int len = valuec1Bytes.length > c1Bytes.length ? c1Bytes.length : valuec1Bytes.length;
+                    for(int j = 0; j < len; j++) {
+                        valuec1Bytes[j] = (byte)(valuec1Bytes[j] ^ c1Bytes[j]);
                     }
                     return enc.encodeToString(valuec1Bytes);
                 }
