@@ -22,11 +22,13 @@ public class TreeLevel extends HashMap<String, Value> {
         MAX = (int)Math.pow(2, level);
     }
 
+    //Puts a value in the hashmap if the hashmap size would not exceed max size
     public void putV(String key, Value value) {
         if(MAX >= size()) return;
         put(key, value);
     }
 
+    //Looks up document id using token
     public String lookup(String token, short op) {
         try {
             Base64.Decoder dec = Base64.getDecoder();
@@ -45,14 +47,16 @@ public class TreeLevel extends HashMap<String, Value> {
                 hkey = enc.encodeToString(hkeyBytes);
                 value = get(hkey);
                 if(value != null) {
-                    c1Json = String.format("[0,%d,%d]", op, i);
+                    c1Json = String.format("[1,%d,%d]", op, i);
                     c1Bytes = hmac.doFinal(c1Json.getBytes());
                     valuec1Bytes = dec.decode(value.c1);
-                    System.out.println(value.c1);
+                    System.out.println("c1: " + value.c1);
+                    System.out.println(Arrays.toString(valuec1Bytes));
                     byte[] arr = new byte[32];
                     for(int j = 0; j < 32; j++) {
-                        arr[j] ^= (byte)(valuec1Bytes[j] ^ c1Bytes[j]);
+                        arr[j] = (byte)(valuec1Bytes[j] ^ c1Bytes[j]);
                     }
+                    System.out.println(Arrays.toString(arr));
                     return new Base32().encodeAsString(arr);
                 }
             }
