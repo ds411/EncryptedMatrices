@@ -63,50 +63,73 @@
         var readWords = function(event) {
             event.preventDefault();
             var fileInput = document.getElementById("fileInput");
-            var file = fileInput.files[0];
 
+            for(var i = 0; i < fileInput.files.length; i++) {
+                var file = fileInput.files[i];
 
-            var fileReader = new FileReader();
-            fileReader.onloadend = function() {
+                var textReader = new FileReader();
+                var base64Reader = new FileReader();
+
                 var wordSet = {};
-                var text = fileReader.result;
-                console.log(text);
-                var plaintext = sjcl.codec.utf8String.toBits(text);
-                var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
-                ciphertext = base64encode(ciphertext);
                 var id = file.name;
-                id = sjcl.codec.utf8String.toBits(id);
-                id = sjcl.hash.sha256.hash(id);
-                console.log(sjcl.codec.bytes.fromBits(id));
-                id = sjcl.codec.base32.fromBits(id);
-                console.log(id);
-                if(file.type === 'text/plain') {
-                    text = text.trim();
-                    text.split(/[\s]+/).forEach(function(element) {
-                        wordSet[element] = true;
-                    });
-                }
-                else {
-                    text = file.name;
-                    text = text.substring(0, text.lastIndexOf('.'));
-                    text = text.split(/[\s]+/).forEach(function(element) {
-                        wordSet[element] = true;
-                    });
-                    console.log(wordSet);
-                }
-                uploadFile(ciphertext, id, file.type);
-                update(Object.keys(wordSet), id, 0);
-            };
+                var fileWords = id.substring(0, id.lastIndexOf('.'));
+                fileWords.trim().match(/[\w-]+/).forEach(function(element) {
+                    wordSet[element] = true;
+                });
 
-            if(file.type === 'text/plain') {
-                fileReader.readAsText(file);
-            }
-            else {
-                fileReader.readAsDataURL(file);
+                textReader.onload = function() {
+                    var text = textReader.result;
+                    text.trim().match(/[\w-]+/).forEach(function(element) {
+                        wordSet[element] = true;
+                    });
+                    console.log(text);
+/*
+                    var plaintext = sjcl.codec.utf8String.toBits(text);
+                    var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
+                    ciphertext = base64encode(ciphertext);
+                    var id = file.name;
+                    id = sjcl.codec.utf8String.toBits(id);
+                    id = sjcl.hash.sha256.hash(id);
+                    console.log(sjcl.codec.bytes.fromBits(id));
+                    id = sjcl.codec.base32.fromBits(id);
+                    console.log(id);
+                    if (file.type === 'text/plain') {
+                        text = text.trim();
+                        text.split(/[\s]+/).forEach(function (element) {
+                            wordSet[element] = true;
+                        });
+                    }
+                    else {
+                        text = file.name;
+                        text = text.substring(0, text.lastIndexOf('.'));
+                        text = text.split(/[\s]+/).forEach(function (element) {
+                            wordSet[element] = true;
+                        });
+                        console.log(wordSet);
+                    }
+                    uploadFile(ciphertext, id, file.type);
+                    update(Object.keys(wordSet), id, 0);*/
+                };
+
+                base64Reader.onload = function() {
+                    var base64text = base64Reader.result;
+                    var data = {name:file.name, text:base64text};
+                    var plaintext = sjcl.codec.utf8String.toBits(JSON.stringify(data));
+                    var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
+                    ciphertext = base64encode(ciphertext);
+
+                    var id = sjcl.codec.base32.fromBits(sjcl.hash.sha256.hash(sjcl.codec.utf8String.toBits(file.name)));
+
+                    uploadFile(ciphertext, id);
+                    update(Object.keys(wordSet), id, 0);
+                };
+
+                if(file.type === 'text/plain') textReader.readAsText(file);
+                base64Reader.readAsDataURL(file);
             }
         };
 
-        var downloadFile = function (filename) {
+        var downloadLink = function(id) {
             var req = new XMLHttpRequest();
 
             req.onreadystatechange = function(e) {
@@ -114,24 +137,30 @@
                     var blob = req.response;
                     var reader = new FileReader();
 
-                    reader.onloadend = function() {
+                    reader.onload = function() {
                         var ciphertext = reader.result;
                         ciphertext = base64decode(ciphertext);
                         var plaintext = sjcl.mode.gcm.decrypt(prf, ciphertext, iv);
                         plaintext = sjcl.codec.utf8String.fromBits(plaintext);
+                        plaintext = JSON.parse(plaintext);
+                        var fileinfo = plaintext.text.split(',');
+                        var filetype = fileinfo[0].match(/[\w/]+/)[0];
+                        console.log("MIMETYPE = " + filetype);
                         console.log(plaintext);
-                        var file = new File([plaintext], filename);
+                        var li = document.createElement('li');
                         var link = document.createElement('a');
-                        link.download = true;
-                        link.href = URL.createObjectURL(file);
-                        link.click();
+                        link.download = plaintext.name;
+                        link.href = plaintext.text;
+                        link.text = plaintext.name;
+                        li.appendChild(link);
+                        results.appendChild(li);
                     };
 
                     reader.readAsText(blob);
                 }
             };
 
-            req.open("GET", "/api/download/" + filename);
+            req.open("GET", "/api/download/" + id);
             req.responseType = 'blob';
             req.send();
         };
@@ -169,15 +198,12 @@
             req.onreadystatechange = function(e) {
                 if(req.readyState === 4 && req.status === 200) {
                     console.log(req.response);
-                    JSON.parse(req.response).forEach(function(filename) {
-                        console.log(filename);
-                        var li = document.createElement("li");
-                        var a = document.createElement("a");
-                        a.text = filename;
-                        a.href = "javascript:downloadFile('" + filename + "');";
+                    JSON.parse(req.response).forEach(function(id) {
+                        console.log(id);
+                        downloadLink(id);
                         //a.addEventListener('onclick', function(){downloadFile(filename);return false;});// = "downloadFile(" + filename + ");return false;";
-                        li.appendChild(a);
-                        results.appendChild(li);
+                        //li.appendChild(a);
+                        //results.appendChild(li);
                     });
                 }
             };
