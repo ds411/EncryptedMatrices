@@ -1,9 +1,13 @@
 package com.sse.dynamicssedropbox.controllers;
 
+import com.sse.dynamicssedropbox.models.UserPrincipal;
+import com.sse.dynamicssedropbox.resources.GetAndPutHashMap;
 import com.sse.dynamicssedropbox.resources.Tree;
 import com.sse.dynamicssedropbox.resources.TreeLevel;
 import com.sse.dynamicssedropbox.resources.Value;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,7 +27,7 @@ import java.util.*;
 public class TreeController {
 
     @Resource
-    private Tree tree; //Tree
+    private GetAndPutHashMap trees; //Tree
 
     @Autowired
     private HttpServletRequest request; //Http request
@@ -31,7 +35,8 @@ public class TreeController {
     //Searches the tree by a dictionary of tokens
     @PostMapping(value = "/search", consumes = "application/json", produces = "application/json")
     public Set<String> search(@RequestBody HashMap<Integer, String> tokens) {
-        return tree.search(tokens);
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        return trees.getAndPut(username).search(tokens);
     }
 
     //Inserts a value into the tree
@@ -39,24 +44,27 @@ public class TreeController {
     public boolean update(@RequestBody String[] values) {
         //if(!tree.update(values)) return tree.levelsToRebuild();
         //return null;
-        tree.update(values);
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        trees.getAndPut(username).update(values);
         return true;
     }
 
     //Returns whether tree must be rebuilt on new update
     @GetMapping(value = "/needsRebuild")
     public boolean needsRebuild() {
-        return tree.firstEmptyLevel() != 0;
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        return trees.getAndPut(username).firstEmptyLevel() != 0;
     }
 
     //Rebuilds tree using a list of values
     @PostMapping(value = "/rebuild", consumes = "application/json")
     public boolean rebuild(@RequestBody String[][] values) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
         Value[] vals = new Value[values.length];
         for(int i = 0; i < values.length; i++) {
             vals[i] = new Value(values[i][0], values[i][1], values[i][2]);
         }
-        tree.simpleRebuild(vals);
+        trees.getAndPut(username).simpleRebuild(vals);
         return true;
     }
 
@@ -101,28 +109,32 @@ public class TreeController {
     //Returns the tree as JSON
     @GetMapping(value = "/table", produces = "application/json")
     public Value[] table() {
-        return tree.levelsToRebuild();
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        return trees.getAndPut(username).levelsToRebuild();
     }
 
     //Returns the first empty level
     @GetMapping(value = "/level")
     public int level() {
-        return tree.firstEmptyLevel();
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        return trees.getAndPut(username).firstEmptyLevel();
     }
 
     //Resets the tree
     @GetMapping(value = "/reset")
     public Value[] reset() {
-        Value[] values = tree.levelsToRegenerate();
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        Value[] values = trees.getAndPut(username).levelsToRegenerate();
         System.out.println(Arrays.toString(values));
-        tree = new Tree();
+        trees.put(username, new Tree());
         return values;
     }
 
     //Returns the tree as JSON
     @GetMapping(value = "/test", produces = "application/json")
     public ArrayList<TreeLevel> test() {
-        return tree.getLevels();
+        String username = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        return trees.getAndPut(username).getLevels();
     }
 
 }

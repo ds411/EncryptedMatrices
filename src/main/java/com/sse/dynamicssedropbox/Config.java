@@ -1,16 +1,19 @@
 package com.sse.dynamicssedropbox;
 
+import com.sse.dynamicssedropbox.resources.GetAndPutHashMap;
 import com.sse.dynamicssedropbox.resources.Tree;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import java.util.HashMap;
+
 @Configuration
 public class Config {
 
     @Bean
-    public Tree tree() {
-        return new Tree();
+    public GetAndPutHashMap trees() {
+        return new GetAndPutHashMap();
     }
 
     @Bean
