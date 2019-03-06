@@ -1,7 +1,6 @@
 package com.sse.dynamicssedropbox.resources;
 
 import org.apache.commons.codec.binary.Base32;
-import org.yaml.snakeyaml.util.ArrayUtils;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;

@@ -1,0 +1,28 @@
+<p>
+    <input id="password" type="password" placeholder="Password" oninput="setPassword(event)">
+</p>
+<div>
+    <form id="upload">
+        <p>
+            <input id="fileInput" type="file">
+        </p>
+        <p>
+            <button onclick="readWords(event)">Upload</button>
+        </p>
+    </form>
+</div>
+<div>
+    <form id="search">
+        <p>
+            <input id="query" type="text" placeholder="Search Query">
+        </p>
+        <p>
+            <button onclick="doSearch(event)">Search</button>
+        </p>
+    </form>
+</div>
+<div>
+    <ul id="results">
+
+    </ul>
+</div>

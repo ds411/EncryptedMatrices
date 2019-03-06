@@ -5,9 +5,29 @@
     <title>Dynamic SSE Dropbox</title>
     <script src="/sjcl.js" th:src="@{/sjcl.js}"></script>
     <script src="/codecBytes.js" th:src="@{/codecBytes.js}"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 </head>
 <body>
-    <p>
+    <div id="content" class="row">
+        <div class="col-4">
+            <h2>Log In</h2>
+            <form id="loginForm">
+                <p><input type="text" placeholder="Username" name="username"></p>
+                <p><input type="password" placeholder="Password" name="password"></p>
+                <p><button onclick="login(event)">Log in</button></p>
+            </form>
+        </div>
+        <div class="col-4">
+            <h2>Register</h2>
+            <form id="registerForm">
+                <p><input type="text" placeholder="Username" name="username"></p>
+                <p><input type="password" placeholder="Password" name="password"></p>
+                <p><input type="password" placeholder="Confirm Password" name="confirmPassword"></p>
+                <p><button onclick="register(event)">Register</button></p>
+            </form>
+        </div>
+    </div>
+    <!--p>
         <input id="password" type="password" placeholder="Password" oninput="setPassword(event)">
     </p>
     <div>
@@ -34,7 +54,7 @@
         <ul id="results">
 
         </ul>
-    </div>
+    </div-->
 
 
     <script>
@@ -50,6 +70,38 @@
         var iv = newKey(); //will make dynamic later
 
         var results = document.getElementById('results');
+
+        var register = function(event) {
+            event.preventDefault();
+            var req = new XMLHttpRequest();
+            var form = document.getElementById("registerForm");
+            var formData = new FormData(form);
+
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    if(req.responseText.indexOf('<') === 0) document.getElementById("content").innerHTML = req.responseText;
+                }
+            };
+
+            req.open("POST", "/account/register");
+            req.send(formData);
+        };
+
+        var login = function(event) {
+            event.preventDefault();
+            var req = new XMLHttpRequest();
+            var form = document.getElementById("loginForm");
+            var formData = new FormData(form);
+
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    if(req.responseText.indexOf('<') === 0) document.getElementById("content").innerHTML = req.responseText;
+                }
+            };
+
+            req.open("POST", "/account/login");
+            req.send(formData);
+        };
 
         //Sets the user password and generates esk key
         var setPassword = function(event) {
