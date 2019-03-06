@@ -22,10 +22,10 @@ public class Tree {
         HashSet<String> idSet = new HashSet<>();
 
         for(int i = 0; i < tokens.size(); i++) {
-            idSet.add(levels.get(i).lookup(tokens.get(i), ADD));
+            if(tokens.get(i) != null) idSet.add(levels.get(i).lookup(tokens.get(i), ADD));
         }
         for(int i = 0; i < tokens.size(); i++) {
-            idSet.remove(levels.get(i).lookup(tokens.get(i), DEL));
+            if(tokens.get(i) != null) idSet.remove(levels.get(i).lookup(tokens.get(i), DEL));
         }
 
         idSet.remove(null);
@@ -35,7 +35,6 @@ public class Tree {
 
     //Updates tree with new values
     public boolean update(String[] values) {
-        System.out.println("Updating...");
         if (!levels.get(0).isEmpty()) return false;
 
         levels.get(0).put(values[0], new Value(values[0], values[1], values[2]));
@@ -44,13 +43,11 @@ public class Tree {
 
     //Rebuilds tree from list of values
     public void simpleRebuild(Value[] values) {
-        System.out.println("Rebuilding...");
         int level = firstEmptyLevel();
         for(int i = 0; i < level; i++) {
             levels.set(i, new TreeLevel(i));
         }
         TreeLevel newLevel = new TreeLevel(level);
-        System.out.println(newLevel.MAX);
         for(int i = 0; i < newLevel.MAX; i++) {
             newLevel.put(values[i].hkey, values[i]);
         }
@@ -74,7 +71,18 @@ public class Tree {
             rows.addAll(levels.get(i).values());
         }
         Value[] arr = new Value[rows.size()];
+        System.out.println(Arrays.toString(rows.toArray()));
         return rows.toArray(arr);
+    }
+
+    public Value[] levelsToRegenerate() {
+        HashSet<Value> values = new HashSet<>();
+        for(int i = 0; i < levels.size(); i++) {
+            values.addAll(levels.get(i).values());
+        }
+        values.remove(null);
+        Value[] arr = new Value[values.size()];
+        return values.toArray(arr);
     }
 
     public ArrayList<TreeLevel> getLevels() {

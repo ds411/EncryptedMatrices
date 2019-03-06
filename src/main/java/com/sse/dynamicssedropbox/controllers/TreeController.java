@@ -110,6 +110,15 @@ public class TreeController {
         return tree.firstEmptyLevel();
     }
 
+    //Resets the tree
+    @GetMapping(value = "/reset")
+    public Value[] reset() {
+        Value[] values = tree.levelsToRegenerate();
+        System.out.println(Arrays.toString(values));
+        tree = new Tree();
+        return values;
+    }
+
     //Returns the tree as JSON
     @GetMapping(value = "/test", produces = "application/json")
     public ArrayList<TreeLevel> test() {

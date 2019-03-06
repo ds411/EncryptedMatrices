@@ -49,13 +49,10 @@ public class TreeLevel extends HashMap<String, Value> {
                     c1Json = String.format("[1,%d,%d]", op, i);
                     c1Bytes = hmac.doFinal(c1Json.getBytes());
                     valuec1Bytes = dec.decode(value.c1);
-                    System.out.println("c1: " + value.c1);
-                    System.out.println(Arrays.toString(valuec1Bytes));
                     byte[] arr = new byte[32];
                     for(int j = 0; j < 32; j++) {
                         arr[j] = (byte)(valuec1Bytes[j] ^ c1Bytes[j]);
                     }
-                    System.out.println(Arrays.toString(arr));
                     return new Base32().encodeAsString(arr);
                 }
             }

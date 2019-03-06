@@ -65,17 +65,14 @@
 
         var password = "";
         var keys = {};
-        keys['esk'] = newKey();
-        var prf = new sjcl.cipher.aes(keys['esk']);
-        var iv = newKey(); //will make dynamic later
-
-        var results = document.getElementById('results');
+        var prf, iv;
 
         var register = function(event) {
             event.preventDefault();
             var req = new XMLHttpRequest();
             var form = document.getElementById("registerForm");
             var formData = new FormData(form);
+            setPassword(formData.get("password"));
 
             req.onreadystatechange = function(e) {
                 if(req.readyState === 4 && req.status === 200) {
@@ -92,10 +89,12 @@
             var req = new XMLHttpRequest();
             var form = document.getElementById("loginForm");
             var formData = new FormData(form);
+            setPassword(formData.get("password"));
 
             req.onreadystatechange = function(e) {
                 if(req.readyState === 4 && req.status === 200) {
                     if(req.responseText.indexOf('<') === 0) document.getElementById("content").innerHTML = req.responseText;
+                    regen();
                 }
             };
 
@@ -104,8 +103,7 @@
         };
 
         //Sets the user password and generates esk key
-        var setPassword = function(event) {
-            password = event.target.value;
+        var setPassword = function(password) {
             keys['esk'] = sjcl.misc.pbkdf2(password, "", 50000);
             iv = sjcl.misc.pbkdf2(password, "", 50001);
             prf = new sjcl.cipher.aes(keys['esk']);
@@ -125,13 +123,13 @@
                 var wordSet = {};
                 var id = file.name;
                 var fileWords = id.substring(0, id.lastIndexOf('.'));
-                fileWords.trim().match(/[\w-]+/).forEach(function(element) {
+                fileWords.trim().split(/[ ]+/).forEach(function(element) {
                     wordSet[element] = true;
                 });
 
                 textReader.onload = function() {
                     var text = textReader.result;
-                    text.trim().match(/[\w-]+/).forEach(function(element) {
+                    text.trim().split(/[ ]+/).forEach(function(element) {
                         wordSet[element] = true;
                     });
                     console.log(text);
@@ -178,6 +176,7 @@
 
                 if(file.type === 'text/plain') textReader.readAsText(file);
                 base64Reader.readAsDataURL(file);
+                console.log(wordSet);
             }
         };
 
@@ -197,15 +196,13 @@
                         plaintext = JSON.parse(plaintext);
                         var fileinfo = plaintext.text.split(',');
                         var filetype = fileinfo[0].match(/[\w/]+/)[0];
-                        console.log("MIMETYPE = " + filetype);
-                        console.log(plaintext);
                         var li = document.createElement('li');
                         var link = document.createElement('a');
                         link.download = plaintext.name;
                         link.href = plaintext.text;
                         link.text = plaintext.name;
                         li.appendChild(link);
-                        results.appendChild(li);
+                        document.getElementById("results").appendChild(li);
                     };
 
                     reader.readAsText(blob);
@@ -218,7 +215,6 @@
         };
 
         var uploadFile = function(ciphertext, id, filetype) {
-            console.log(id);
             var formdata = new FormData();
             formdata.append('file', new File([new Blob([ciphertext])], id, {type:filetype}));
             var req = new XMLHttpRequest();
@@ -243,7 +239,7 @@
                 }
             }
 
-            results.innerHTML = "";
+            document.getElementById("results").innerHTML = "";
 
             var req = new XMLHttpRequest();
 
@@ -251,7 +247,6 @@
                 if(req.readyState === 4 && req.status === 200) {
                     console.log(req.response);
                     JSON.parse(req.response).forEach(function(id) {
-                        console.log(id);
                         downloadLink(id);
                         //a.addEventListener('onclick', function(){downloadFile(filename);return false;});// = "downloadFile(" + filename + ");return false;";
                         //li.appendChild(a);
@@ -262,6 +257,7 @@
 
             req.open("POST", "/api/search", false);
             req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+            console.log(tokens);
             req.send(JSON.stringify(tokens));
         };
 
@@ -301,8 +297,29 @@
             req.send(JSON.stringify(entry));
         };
 
+        var regen = function() {
+            var req = new XMLHttpRequest();
+
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    console.log(req.response);
+                    var T = JSON.parse(req.response);
+                    for(var key in Object.keys(T)) {
+                        console.log(decrypt(T[key]['c2']));
+                        tuple = decrypt(T[key]['c2']);
+                        update([tuple[0]], tuple[1], tuple[2]);
+                    }
+                }
+            };
+
+            req.open("GET", "/api/reset");
+            req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+            req.send();
+        };
+
         var rebuild = function(w, id, op) {
             var T = fetchTable();
+            console.log(T);
             var l = fetchLevel();
             var lev = simpleRebuild(fetchTable(), fetchLevel(), w, id, op);
 
@@ -315,6 +332,7 @@
 
             req.open("POST", "/api/rebuild", false);
             req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+            console.log(lev);
             req.send(JSON.stringify(lev));
         };
 
@@ -422,7 +440,6 @@
         var token = function(l, w) {
             var levelPrf = new sjcl.cipher.aes(keys[l]);
             var tkn = sjcl.mode.gcm.encrypt(levelPrf, sjcl.hash.sha256.hash(w), iv);
-            console.log(base64encode(tkn));
             return base64encode(tkn);
         };
 
@@ -433,20 +450,15 @@
             var hmacBits = bite([0, tuple[2], tuple[3]]);
             var hkey = hmac.encrypt(hmacBits);
             hkey = base64encode(hkey);
-            console.log(hkey);
             var c1Bits = bite([1, tuple[2], tuple[3]]);
             var c1 = hmac.encrypt(c1Bits);
             c1 = sjcl.codec.bytes.fromBits(c1);
             var id = sjcl.codec.base32.toBits(tuple[1]);
             id = sjcl.codec.bytes.fromBits(id);
             for(var i = 0; i < 32; i++) c1[i] = (c1[i]^id[i])%256;
-            console.log(c1);
             c1 = base64encode(sjcl.codec.bytes.toBits(c1));
-            console.log(c1);
-            console.log(tuple[1]);
             var c2 = sjcl.mode.gcm.encrypt(prf, bite(tuple), iv);
             c2 = base64encode(c2);
-            console.log(c1);
             return [hkey, c1, c2];
         };
 
