@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.springframework.org/schema/mvc">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamic SSE Dropbox</title>
+    <script src="/sjcl.js" th:src="@{/sjcl.js}"></script>
+    <script src="/codecBytes.js" th:src="@{/codecBytes.js}"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <style>
+        #content {
+            width:60%;
+            min-height:100vh;
+            height:100%;
+            background:lightgrey;
+            box-shadow:5px 10px darkgrey;
+            margin:auto;
+        }
+        .col-6 div {
+            width:300px;
+            margin:auto;
+        }
+        #app {
+            width:100%;
+            max-width:600px;
+            margin:auto;
+        }
+        #app > div > a {
+            display:block;
+            float:right;
+            width:100px;
+            font-weight:bold;
+            text-align:center;
+        }
+    </style>
+</head>
+<body>
+<div id="content">
+    <div id="app">
+        <div>
+            <a href="/account/logout" class="btn btn-info">
+                <span class="glyphicon glyphicon-log-out"></span>Log Out
+            </a>
+        </div>
+        <div>
+            <form id="upload">
+                <p>
+                    <input id="fileInput" type="file">
+                </p>
+                <p>
+                    <button class="btn btn-primary" onclick="readWords(event)">Upload</button>
+                </p>
+            </form>
+        </div>
+        <div>
+            <form id="search">
+                <p>
+                    <input id="query" type="text" placeholder="Search Query">
+                </p>
+                <p>
+                    <button class="btn btn-primary" onclick="doSearch(event)">Search</button>
+                </p>
+            </form>
+        </div>
+        <div>
+            <ul id="results">
+
+            </ul>
+        </div>
+    </div>
+</div>
+<!--p>
+    <input id="password" type="password" placeholder="Password" oninput="setPassword(event)">
+</p>
+<div>
+    <form id="upload">
+        <p>
+            <input id="fileInput" type="file">
+        </p>
+        <p>
+            <button onclick="readWords(event)">Upload</button>
+        </p>
+    </form>
+</div>
+<div>
+    <form id="search">
+        <p>
+            <input id="query" type="text" placeholder="Search Query">
+        </p>
+        <p>
+            <button onclick="doSearch(event)">Search</button>
+        </p>
+    </form>
+</div>
+<div>
+    <ul id="results">
+
+    </ul>
+</div-->
+
+
+<script>
+    //Generates a new key
+    var newKey = function() {
+        return sjcl.random.randomWords(8);
+    };
+
+    var password = "";
+    var keys = {};
+    var prf, iv;
+
+    var register = function(event) {
+        event.preventDefault();
+        var req = new XMLHttpRequest();
+        var form = document.getElementById("registerForm");
+        var formData = new FormData(form);
+        setPassword(formData.get("password"));
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+                if(req.responseText.indexOf('<') === 0) document.getElementById("content").innerHTML = req.responseText;
+            }
+        };
+
+        req.open("POST", "/account/register");
+        req.send(formData);
+    };
+
+    var login = function(event) {
+        event.preventDefault();
+        var req = new XMLHttpRequest();
+        var form = document.getElementById("loginForm");
+        var formData = new FormData(form);
+        setPassword(formData.get("password"));
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+                if(req.responseText.indexOf('<') === 0) document.getElementById("content").innerHTML = req.responseText;
+                regen();
+            }
+        };
+
+        req.open("POST", "/account/login");
+        req.send(formData);
+    };
+
+    //Sets the user password and generates esk key
+    var setPassword = function(password) {
+        keys['esk'] = sjcl.misc.pbkdf2(password, "", 50000);
+        iv = sjcl.misc.pbkdf2(password, "", 50001);
+        prf = new sjcl.cipher.aes(keys['esk']);
+    };
+
+    //Generates word set from file
+    var readWords = function(event) {
+        event.preventDefault();
+        var fileInput = document.getElementById("fileInput");
+
+        for(var i = 0; i < fileInput.files.length; i++) {
+            var file = fileInput.files[i];
+
+            var textReader = new FileReader();
+            var base64Reader = new FileReader();
+
+            var wordSet = {};
+            var id = file.name;
+            var fileWords = id.substring(0, id.lastIndexOf('.'));
+            fileWords.trim().split(/[^\w-']+/).forEach(function(element) {
+                wordSet[element] = true;
+            });
+
+            textReader.onload = function() {
+                var text = textReader.result;
+                text.trim().split(/[^\w-']+/).forEach(function(element) {
+                    wordSet[element] = true;
+                });
+                console.log(text);
+                /*
+                                    var plaintext = sjcl.codec.utf8String.toBits(text);
+                                    var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
+                                    ciphertext = base64encode(ciphertext);
+                                    var id = file.name;
+                                    id = sjcl.codec.utf8String.toBits(id);
+                                    id = sjcl.hash.sha256.hash(id);
+                                    console.log(sjcl.codec.bytes.fromBits(id));
+                                    id = sjcl.codec.base32.fromBits(id);
+                                    console.log(id);
+                                    if (file.type === 'text/plain') {
+                                        text = text.trim();
+                                        text.split(/[\s]+/).forEach(function (element) {
+                                            wordSet[element] = true;
+                                        });
+                                    }
+                                    else {
+                                        text = file.name;
+                                        text = text.substring(0, text.lastIndexOf('.'));
+                                        text = text.split(/[\s]+/).forEach(function (element) {
+                                            wordSet[element] = true;
+                                        });
+                                        console.log(wordSet);
+                                    }
+                                    uploadFile(ciphertext, id, file.type);
+                                    update(Object.keys(wordSet), id, 0);*/
+            };
+
+            base64Reader.onload = function() {
+                var base64text = base64Reader.result;
+                var data = {name:file.name, text:base64text};
+                var plaintext = sjcl.codec.utf8String.toBits(JSON.stringify(data));
+                var ciphertext = sjcl.mode.gcm.encrypt(prf, plaintext, iv);
+                ciphertext = base64encode(ciphertext);
+
+                var id = sjcl.codec.base32.fromBits(sjcl.hash.sha256.hash(sjcl.codec.utf8String.toBits(file.name)));
+
+                uploadFile(ciphertext, id);
+                update(Object.keys(wordSet), id, 0);
+            };
+
+            if(file.type === 'text/plain') textReader.readAsText(file);
+            base64Reader.readAsDataURL(file);
+            console.log(wordSet);
+        }
+    };
+
+    var downloadLink = function(id) {
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+                var blob = req.response;
+                var reader = new FileReader();
+
+                reader.onload = function() {
+                    var ciphertext = reader.result;
+                    ciphertext = base64decode(ciphertext);
+                    var plaintext = sjcl.mode.gcm.decrypt(prf, ciphertext, iv);
+                    plaintext = sjcl.codec.utf8String.fromBits(plaintext);
+                    plaintext = JSON.parse(plaintext);
+                    var fileinfo = plaintext.text.split(',');
+                    var filetype = fileinfo[0].match(/[\w/]+/)[0];
+                    var li = document.createElement('li');
+                    var link = document.createElement('a');
+                    link.download = plaintext.name;
+                    link.href = plaintext.text;
+                    link.text = plaintext.name;
+                    li.appendChild(link);
+                    document.getElementById("results").appendChild(li);
+                };
+
+                reader.readAsText(blob);
+            }
+        };
+
+        req.open("GET", "/api/download/" + id);
+        req.responseType = 'blob';
+        req.send();
+    };
+
+    var uploadFile = function(ciphertext, id, filetype) {
+        var formdata = new FormData();
+        formdata.append('file', new File([new Blob([ciphertext])], id, {type:filetype}));
+        var req = new XMLHttpRequest();
+        req.open("POST", "/api/upload");
+        req.send(formdata);
+        document.getElementById('upload').reset();
+    };
+
+    //Performs search on form input
+    var doSearch = function(event) {
+        event.preventDefault();
+        var query = document.getElementById("query").value;
+        search(query);
+    };
+
+    //Searches keyword
+    var search = function(w) {
+        var tokens = {};
+        var k = Object.keys(keys);
+        for(var i = 0; i < k.length; i++) {
+            if(k[i] !== 'esk') {
+                tokens[k[i]] = token(k[i], w);
+            }
+        }
+
+        document.getElementById("results").innerHTML = "";
+
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+                console.log(req.response);
+                JSON.parse(req.response).forEach(function(id) {
+                    downloadLink(id);
+                    //a.addEventListener('onclick', function(){downloadFile(filename);return false;});// = "downloadFile(" + filename + ");return false;";
+                    //li.appendChild(a);
+                    //results.appendChild(li);
+                });
+            }
+        };
+
+        req.open("POST", "/api/search", false);
+        req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+        console.log(tokens);
+        req.send(JSON.stringify(tokens));
+    };
+
+    //Updates index
+    var update = function(v, id, op) {
+        v.forEach(function(w) {
+            var req = new XMLHttpRequest();
+
+            req.onreadystatechange = function(e) {
+                if(req.readyState === 4 && req.status === 200) {
+                    if (req.response === 'true') {
+                        rebuild(w, id, op);
+                    }
+                    else {
+                        insert(w, id, op);
+                    }
+                }
+            };
+
+            req.open("GET", "/api/needsRebuild", false);
+            req.send();
+        });
+    };
+
+    var insert = function(w, id, op) {
+        keys[0] = newKey();
+        var entry = encodeEntry(0, [w, id, op, 0]);
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+            }
+        };
+
+        req.open("POST", "/api/update", false);
+        req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+        req.send(JSON.stringify(entry));
+    };
+
+    var regen = function() {
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+                console.log(req.response);
+                var T = JSON.parse(req.response);
+                for(var key in Object.keys(T)) {
+                    console.log(decrypt(T[key]['c2']));
+                    tuple = decrypt(T[key]['c2']);
+                    update([tuple[0]], tuple[1], tuple[2]);
+                }
+            }
+        };
+
+        req.open("GET", "/api/reset");
+        req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+        req.send();
+    };
+
+    var rebuild = function(w, id, op) {
+        var T = fetchTable();
+        console.log(T);
+        var l = fetchLevel();
+        var lev = simpleRebuild(fetchTable(), fetchLevel(), w, id, op);
+
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+            }
+        };
+
+        req.open("POST", "/api/rebuild", false);
+        req.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+        console.log(lev);
+        req.send(JSON.stringify(lev));
+    };
+
+    //Fetches table up to first empty level from server
+    var fetchTable = function() {
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+                return JSON.parse(req.response);
+            }
+        };
+
+        req.open("GET", "/api/table", false);
+        req.send();
+        return req.onreadystatechange();
+    };
+
+    //Fetches first empty level from server
+    var fetchLevel = function() {
+        var req = new XMLHttpRequest();
+
+        req.onreadystatechange = function(e) {
+            if(req.readyState === 4 && req.status === 200) {
+                return req.response;
+            }
+        };
+
+        req.open("GET", "/api/level", false);
+        req.send();
+        return req.onreadystatechange();
+    };
+
+    //Rebuilds first l-1 levels of table
+    var simpleRebuild = function(T, l, w, id, op) {
+        var B = [];
+        B[0] = [w, id, op, 0];
+        console.log(T);
+        for(var key in Object.keys(T)) {
+            B.push(decrypt(T[key]['c2']));
+        }
+        B.sort(lexSort);
+        console.log(B);
+        B = reCnt(B);
+        keys[l] = newKey();
+        var lev = [];
+        B.forEach(function(tuple) {
+            lev.push(encodeEntry(l, tuple));
+        });
+        lev.sort(hkeySort);
+        return lev;
+    };
+
+    //Sorts buffer by w > id > op
+    var lexSort = function(a, b) {
+        if(a[0] === b[0]) {
+            if(a[1] === b[1]) {
+                if(a[2] === b[2]) {
+                    return 0;
+                }
+                else return (a[2] < b[2]) ? -1 : 1;
+            }
+            else return (a[1] < b[1]) ? -1 : 1;
+        }
+        else return (a[0] < b[0]) ? -1 : 1;
+    };
+
+    //Sorts level by hkey
+    var hkeySort = function(a, b) {
+        if(a[0] === b[0]) return 0;
+        else return (a[0] < b[0]) ? -1 : 1;
+    };
+
+    //Updates cnt values in sorted buffer
+    var reCnt = function(B) {
+        var prevW = "";
+        var prevOp = -1;
+        var prevCnt = -1;
+        for(var i = 0; i < B.length; i++) {
+            if(B[i][0] === prevW) {
+                if((B[i][1] === B[i-1][1]) && (B[i][2] + prevOp === 1)) {
+                    prevOp = -1;
+                    prevCnt--;
+                    if(prevCnt === -1) prevW = "";
+                    B[i-1] = B[i] = null;
+                }
+                else {
+                    B[i][3] = ++prevCnt;
+                    prevOp = B[i][2];
+                }
+            }
+            else {
+                B[i][3] = prevCnt = 0;
+                prevW = B[i][0];
+                prevOp = B[i][2];
+            }
+        }
+        return B;
+    };
+
+    //Decrypts table entry to return (w, id, op, cnt)
+    var decrypt = function(c2) {
+        return JSON.parse(sjcl.codec.utf8String.fromBits(sjcl.mode.gcm.decrypt(prf, base64decode(c2), iv)));
+    };
+
+    var token = function(l, w) {
+        var levelPrf = new sjcl.cipher.aes(keys[l]);
+        var tkn = sjcl.mode.gcm.encrypt(levelPrf, sjcl.hash.sha256.hash(w), iv);
+        return base64encode(tkn);
+    };
+
+    //Encodes a tuple (w, id, op, cnt) and returns a tuple (hkey, c1, c2)
+    var encodeEntry = function(l, tuple) {
+        var tkn = token(l, tuple[0]);
+        var hmac = new sjcl.misc.hmac(base64decode(tkn), sjcl.hash.sha256);
+        var hmacBits = bite([0, tuple[2], tuple[3]]);
+        var hkey = hmac.encrypt(hmacBits);
+        hkey = base64encode(hkey);
+        var c1Bits = bite([1, tuple[2], tuple[3]]);
+        var c1 = hmac.encrypt(c1Bits);
+        c1 = sjcl.codec.bytes.fromBits(c1);
+        var id = sjcl.codec.base32.toBits(tuple[1]);
+        id = sjcl.codec.bytes.fromBits(id);
+        for(var i = 0; i < 32; i++) c1[i] = (c1[i]^id[i])%256;
+        c1 = base64encode(sjcl.codec.bytes.toBits(c1));
+        var c2 = sjcl.mode.gcm.encrypt(prf, bite(tuple), iv);
+        c2 = base64encode(c2);
+        return [hkey, c1, c2];
+    };
+
+    //Converts an item to a bitArray
+    var bite = function(item) {
+        return sjcl.codec.utf8String.toBits(JSON.stringify(item));
+    };
+
+    var base64encode = function(b) {
+        return sjcl.codec.base64.fromBits(b);
+    };
+
+    var base64decode = function(b) {
+        return sjcl.codec.base64.toBits(b);
+    };
+
+</script>
+</body>
+</html>

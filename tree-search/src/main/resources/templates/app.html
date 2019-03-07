@@ -1,0 +1,32 @@
+<div id="app">
+    <div>
+        <a href="/account/logout" class="btn btn-info">
+            <span class="glyphicon glyphicon-log-out"></span>Log Out
+        </a>
+    </div>
+    <div>
+        <form id="upload">
+            <p>
+                <input id="fileInput" type="file">
+            </p>
+            <p>
+                <button class="btn btn-primary" onclick="readWords(event)">Upload</button>
+            </p>
+        </form>
+    </div>
+    <div>
+        <form id="search">
+            <p>
+                <input id="query" type="text" placeholder="Search Query">
+            </p>
+            <p>
+                <button class="btn btn-primary" onclick="doSearch(event)">Search</button>
+            </p>
+        </form>
+    </div>
+    <div>
+        <ul id="results">
+
+        </ul>
+    </div>
+</div>
