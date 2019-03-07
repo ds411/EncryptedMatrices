@@ -161,13 +161,13 @@
             var wordSet = {};
             var id = file.name;
             var fileWords = id.substring(0, id.lastIndexOf('.'));
-            fileWords.trim().split(/[ ]+/).forEach(function(element) {
+            fileWords.trim().split(/[^\w-']+/).forEach(function(element) {
                 wordSet[element] = true;
             });
 
             textReader.onload = function() {
                 var text = textReader.result;
-                text.trim().split(/[ ]+/).forEach(function(element) {
+                text.trim().split(/[^\w-']+/).forEach(function(element) {
                     wordSet[element] = true;
                 });
                 console.log(text);
@@ -413,6 +413,7 @@
             B.push(decrypt(T[key]['c2']));
         }
         B.sort(lexSort);
+        console.log(B);
         B = reCnt(B);
         keys[l] = newKey();
         var lev = [];
