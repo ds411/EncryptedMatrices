@@ -12,7 +12,7 @@
             min-height:100vh;
             height:100%;
             background:lightgrey;
-            box-shadow:2px 4px darkgrey;
+            box-shadow:5px 10px darkgrey;
             margin:auto;
         }
         .col-6 div {
@@ -26,9 +26,10 @@
         }
         #app > div > a {
             display:block;
-            width:100%;
+            float:right;
+            width:100px;
             font-weight:bold;
-            text-align:right;
+            text-align:center;
         }
     </style>
 </head>
@@ -251,6 +252,7 @@
             var req = new XMLHttpRequest();
             req.open("POST", "/api/upload");
             req.send(formdata);
+            document.getElementById('upload').reset();
         };
 
         //Performs search on form input
