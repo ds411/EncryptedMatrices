@@ -8,10 +8,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -35,11 +32,13 @@ public class AccountController {
         User user;
         if(password.equals(confirmPassword)) {
             user = service.register(username, password);
-            UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
-            SecurityContext securityContext = SecurityContextHolder.getContext();
-            securityContext.setAuthentication(token);
-            request.getSession().setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
-            return "app.html";
+            if(user != null) {
+                UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(username, password);
+                SecurityContext securityContext = SecurityContextHolder.getContext();
+                securityContext.setAuthentication(token);
+                request.getSession().setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
+                return "app.html";
+            }
         }
         return null;
     }
@@ -56,5 +55,13 @@ public class AccountController {
         securityContext.setAuthentication(token);
         request.getSession().setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
         return "app.html";
+    }
+
+    @GetMapping("/logout")
+    public String logout(HttpServletRequest request, HttpServletResponse response) {
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+        securityContext.setAuthentication(null);
+        request.getSession().setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, securityContext);
+        return "redirect:/";
     }
 }
