@@ -9,4 +9,117 @@
 <body>
 
 </body>
+<script>
+    const K = [3];
+    const w = 128;
+    const n = 128;
+
+    var aes = new sjcl.cipher.aes(sjcl.random.randomWords(4));
+
+    function gen(password) {
+        K[1] = sjcl.misc.pbkdf2(password, "", 40000, 128);
+        prf = new sjcl.cipher.aes(K[1]);
+        K['iv'] = sjcl.misc.pbkdf2(password, "", 40001, 128);
+        K[2] = sjcl.random.randomWords(4);
+        K[3] = sjcl.random.randomWords(4);
+    }
+
+    function enc(M, m, v) {
+        const s1 = M.length;
+        const s2 = M[0].length;
+        let C = [s1][s2];
+        let p = genPermuation(s1, s2); //todo
+        const P = genPRP(M);
+        for(let i = 0; i < s1; i++) {
+            for(let j = 0; j < s2; j++) {
+
+                let plaintext = M[i][j];
+                let ciphertext;
+                if(plaintext !== null) {
+
+                    //todo
+                    let a = P[i][j]['a'];
+                    let b = P[i][j]['b'];
+
+                    let i = M[i][j];
+                    let s = JSON.stringify(p[i], v[i]);
+                    let bits = utf8Decode(s);
+                    ciphertext = encrypt(plaintext);
+                    for (let k = 0; 0 < ciphertext.length; k++) {
+                        ciphertext[k] = ciphertext ^ (0 | bits[k]);
+                    }
+                }
+                else {
+                    ciphertext = encrypt(sjcl.random.randomWords(4)); //todo
+                }
+
+                C[a][b] = ciphertext;
+            }
+        }
+    }
+
+    function token(a, b) {
+        T = {};
+        T['s'] = encrypt(JSON.stringify([a, b]));
+        let coords = permute(a, b);
+        T['a'] = coords['a'];
+        T['b'] = coords['b'];
+        return T;
+    }
+
+    function dec(c) {
+        return sjcl.mode.gcm.decrypt(aes, c, K['iv'])
+    }
+
+    function genPermuation(s1, s2) {
+        let permutation = {};
+        //todo
+        for(let i = 0; i < s1; i++) {
+            for(let j = 0; j < s2; j++) {
+                permutation[i][j]["x"] = i;
+                permutation[i][j]["y"] = j;
+            }
+        }
+        return permutation;
+    }
+
+    //Generate PRP for array
+    function genPRP(arr) {
+        let P = {};
+        const s1 = M.length;
+        const s2 = M[0].length;
+        for(let i = s1 - 1; i > 0; i--) {
+            for(let j = s2 - 1; j> 0; j--) {
+
+                let a = randomNumber(i + 1);
+                let b = randomNumber(j + 1);
+
+                P[i][j]['a'] = a;
+                P[i][j]['b'] = b;
+            }
+        }
+        return M;
+    }
+
+    function utf8Decode(string) {
+        return sjcl.codec.utf8String.toBits(string);
+    }
+
+    function base64Encode(bitstring) {
+        return sjcl.codec.base64.fromBits(bitstring);
+    }
+
+    function base64Decode(string) {
+        return sjcl.codec.base64.toBits(string);
+    }
+
+    function randomNumber(max) {
+        let words = sjcl.random.randomWords(2);
+        return parseInt(sjcl.codec.hex.fromBits(words), 16) % max;
+    }
+
+    function encrypt(string) {
+        return sjcl.mode.gcm.encrypt(aes, utf8Decode(string), K['iv']);
+    }
+</script>
 </html>
