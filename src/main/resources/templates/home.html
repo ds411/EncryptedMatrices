@@ -37,7 +37,7 @@
     const n = 128;
 
     var aes = new sjcl.cipher.aes(sjcl.random.randomWords(4));
-    var feistelAes = new sjcl.cipher.aes(sjcl.random.randomWords(4));
+    var aes2 = new sjcl.cipher.aes(sjcl.random.randomWords(4));
 
     function gen(password) {
         K[1] = sjcl.misc.pbkdf2(password, "", 40000, 128);
@@ -45,7 +45,9 @@
         K['iv'] = sjcl.misc.pbkdf2(password, "", 40001, 128);
         K[2] = sjcl.random.randomWords(4);
         K[3] = sjcl.random.randomWords(4);
-        feistelAes = new sjcl.cipher.aes(K[3]);
+        K['ivI'] = sjcl.random.randomWords(4);
+        K['ivJ'] = sjcl.random.randomWords(4);
+        aes2 = new sjcl.cipher.aes(K[3]);
     }
 
     function enc(M, message, v) {
@@ -53,6 +55,7 @@
         const s2 = M[0].length;
         let C = [s1][s2];
         const p = genPermuation(s1, s2);
+        const P = genPRP(s1, s2);
         for(let i = 0; i < s1; i++) {
             for(let j = 0; j < s2; j++) {
 
@@ -94,27 +97,48 @@
         return sjcl.mode.gcm.decrypt(aes, c, K['iv'])
     }
 
-    //4-round Luby-Rackoff construction with AES-CTR as PRF
-    function prpPermute(val) {
-        //todo
+    //Black and Rogaway Prefix Cipher
+    function genPRP(s1, s2) {
+        let P = [];
+        let weights = [];
+
+        //Pseudorandomly generate weights for each pair (a, b) in M
+        for(let i = 0; i < s1*s2; i++) {
+            weights[i] = {k:[Math.floor(i/s2), i%s2], v:weight(i)};
+        }
+
+        //Sort weights
+        weights = weights.sort(function(a, b) {
+            return a.v.localeCompare(b.v);
+        });
+        console.log(weights);
+
+        //Generate permutation matrix
+        for(let i = 0; i < s1; i++) {
+            P[i] = [];
+            for(let j = 0; j < s2; j++) {
+                P[i][j] = weights[i*s2 + j]['k'];
+            }
+        }
+        console.log(P);
     }
 
     //Generate PRP for array
-    function genPermutation(arr) {
-        let P = {};
-        const s1 = M.length;
-        const s2 = M[0].length;
+    function genPermutation(_s1, _s2) {
+        let p = {};
+        const s1 = _s1;
+        const s2 = _s2;
         for(let i = s1 - 1; i > 0; i--) {
             for(let j = s2 - 1; j> 0; j--) {
 
                 let a = randomNumber(i + 1);
                 let b = randomNumber(j + 1);
 
-                P[i][j]['a'] = a;
-                P[i][j]['b'] = b;
+                p[i][j]['a'] = a;
+                p[i][j]['b'] = b;
             }
         }
-        return M;
+        return p;
     }
 
     function utf8Decode(string) {
@@ -133,6 +157,14 @@
         return sjcl.codec.base64.toBits(string);
     }
 
+    function hexEncode(bits) {
+        return sjcl.codec.hex.fromBits(bits);
+    }
+
+    function hexDecode(string) {
+        return sjcl.codec.hex.toBits(string);
+    }
+
     function randomNumber(max) {
         let words = sjcl.random.randomWords(2);
         return parseInt(sjcl.codec.hex.fromBits(words), 16) % max;
@@ -142,8 +174,9 @@
         return sjcl.mode.gcm.encrypt(aes, utf8Decode(string), K['iv']);
     }
 
-    function encBits(bitstring) {
-        return sjcl.mode.gcm.encrypt(feistelAes, bitstring, [0,0,0,0]);
+    function weight(num) {
+        let hex = num.toString(16);
+        return hexEncode(sjcl.mode.gcm.encrypt(aes2, hexDecode(hex), K['iv'], [], 0));
     }
 </script>
 </html>
