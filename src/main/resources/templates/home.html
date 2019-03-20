@@ -38,50 +38,59 @@
 
     var aes = new sjcl.cipher.aes(sjcl.random.randomWords(4));
     var aes2 = new sjcl.cipher.aes(sjcl.random.randomWords(4));
+    var aes3 = new sjcl.cipher.aes(sjcl.random.randomWords(4));
 
     function gen(password) {
         K[1] = sjcl.misc.pbkdf2(password, "", 40000, 128);
         prf = new sjcl.cipher.aes(K[1]);
         K['iv'] = sjcl.misc.pbkdf2(password, "", 40001, 128);
         K[2] = sjcl.random.randomWords(4);
+        aes2 = new sjcl.cipher.aes(K[2]);
         K[3] = sjcl.random.randomWords(4);
-        K['ivI'] = sjcl.random.randomWords(4);
-        K['ivJ'] = sjcl.random.randomWords(4);
-        aes2 = new sjcl.cipher.aes(K[3]);
+        aes3 = new sjcl.cipher.aes(K[3]);
+
     }
 
-    function enc(M, message, v) {
+    function enc(M, message) {
         const s1 = M.length;
         const s2 = M[0].length;
-        let C = [s1][s2];
-        const p = genPermuation(s1, s2);
+        let C = [];
+        for(let i = 0; i < s1; i++) C[i] = [];
+        let c = [];
+        for(let i = 0; i < s1*s2; i++) c[i] = [];
+        const p = genPermutation(s1, s2);
         const P = genPRP(s1, s2);
         for(let i = 0; i < s1; i++) {
             for(let j = 0; j < s2; j++) {
 
                 let plaintext = M[i][j];
+                let a = P[i][j][0];
+                let b = P[i][j][1];
                 let ciphertext;
+
                 if(plaintext !== null) {
 
-                    //todo
-                    let a = P[i][j]['a'];
-                    let b = P[i][j]['b'];
 
-                    let i = M[i][j];
-                    let s = JSON.stringify(p[i], v[i]);
+                    let _i = M[i][j];
+                    let s = JSON.stringify(p[_i], message['v'][_i]);
                     let bits = utf8Decode(s);
-                    ciphertext = encrypt(plaintext);
-                    for (let k = 0; 0 < ciphertext.length; k++) {
-                        ciphertext[k] = ciphertext ^ (0 | bits[k]);
+                    ciphertext = encrypt(JSON.stringify([a,b]));
+                    for (let k = 0; k < ciphertext.length; k++) {
+                        ciphertext[k] ^= (bits[k]);
                     }
                 }
                 else {
                     ciphertext = encrypt(sjcl.random.randomWords(4)); //todo
                 }
 
-                C[a][b] = ciphertext;
+
+                C[a][b] = base64Encode(ciphertext);
             }
         }
+        for(let i = 0; i < message['v'].length; i++) {
+            c[p[i]] = encryptMessage(message['m'][i]);
+        }
+        console.log(C, c);
     }
 
     function token(a, b) {
@@ -111,7 +120,6 @@
         weights = weights.sort(function(a, b) {
             return a.v.localeCompare(b.v);
         });
-        console.log(weights);
 
         //Generate permutation matrix
         for(let i = 0; i < s1; i++) {
@@ -120,23 +128,19 @@
                 P[i][j] = weights[i*s2 + j]['k'];
             }
         }
-        console.log(P);
+        return P;
     }
 
-    //Generate PRP for array
-    function genPermutation(_s1, _s2) {
-        let p = {};
-        const s1 = _s1;
-        const s2 = _s2;
-        for(let i = s1 - 1; i > 0; i--) {
-            for(let j = s2 - 1; j> 0; j--) {
-
-                let a = randomNumber(i + 1);
-                let b = randomNumber(j + 1);
-
-                p[i][j]['a'] = a;
-                p[i][j]['b'] = b;
-            }
+    //Generate permutation for message sequence
+    function genPermutation(s1, s2) {
+        let p = [];
+        let set = [];
+        let s = s1*s2;
+        for(let i = 0; i < s; i++) set[i] = i;
+        for(let i = s-1; i >= 0; i--) {
+            let n = randomNumber(i + 1);
+            p[i] = set[n];
+            set.splice(n,1);
         }
         return p;
     }
@@ -176,7 +180,18 @@
 
     function weight(num) {
         let hex = num.toString(16);
-        return hexEncode(sjcl.mode.gcm.encrypt(aes2, hexDecode(hex), K['iv'], [], 0));
+        return hexEncode(sjcl.mode.gcm.encrypt(aes2, hexDecode(hex), K['iv']));
+    }
+
+    function encryptMessage(string) {
+        return base64Encode(sjcl.mode.gcm.encrypt(aes3, utf8Decode(string), K['iv']));
+    }
+
+    function test() {
+        let matrix = [ [0,1,2],[3,4,5],[6,7,8] ];
+        let message = {'v':['a','b','c','d','e','f','g','h','i'], 'm':['aa','bb','cc','dd','ee','ff','gg','hh','ii']};
+        gen('pass');
+        enc(matrix, message);
     }
 </script>
 </html>
