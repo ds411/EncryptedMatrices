@@ -5,8 +5,30 @@
     <title>Structured Encryption</title>
     <script src="/sjcl.js"></script>
     <link rel="stylesheet" type="text/css" href="/style.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 </head>
 <body>
+    <div id="content">
+        <div class="row bg-secondary" style="margin:auto; width:100%; max-width:1000px; min-height:100vh; height:100%">
+            <div class="col-6">
+                <h2>Log In</h2>
+                <form id="login">
+                    <p><input class="form-control" type="text" placeholder="Username" name="username"></p>
+                    <p><input class="form-control" type="password" placeholder="Password" name="password"></p>
+                    <p><btn class="btn btn-primary">Log In</btn></p>
+                </form>
+            </div>
+            <div class="col-6">
+                <h2>Register</h2>
+                <form id="register">
+                    <p><input class="form-control" type="text" placeholder="Username" name="username"></p>
+                    <p><input class="form-control" type="password" placeholder="Password" name="password"></p>
+                    <p><input class="form-control" type="password" placeholder="Confirm Password" name="confirmPassword"></p>
+                    <p><btn class="btn btn-primary">Register</btn></p>
+                </form>
+            </div>
+        </div>
+    </div>
 
 </body>
 <script>
@@ -15,6 +37,7 @@
     const n = 128;
 
     var aes = new sjcl.cipher.aes(sjcl.random.randomWords(4));
+    var feistelAes = new sjcl.cipher.aes(sjcl.random.randomWords(4));
 
     function gen(password) {
         K[1] = sjcl.misc.pbkdf2(password, "", 40000, 128);
@@ -22,14 +45,14 @@
         K['iv'] = sjcl.misc.pbkdf2(password, "", 40001, 128);
         K[2] = sjcl.random.randomWords(4);
         K[3] = sjcl.random.randomWords(4);
+        feistelAes = new sjcl.cipher.aes(K[3]);
     }
 
-    function enc(M, m, v) {
+    function enc(M, message, v) {
         const s1 = M.length;
         const s2 = M[0].length;
         let C = [s1][s2];
-        let p = genPermuation(s1, s2); //todo
-        const P = genPRP(M);
+        const p = genPermuation(s1, s2);
         for(let i = 0; i < s1; i++) {
             for(let j = 0; j < s2; j++) {
 
@@ -60,7 +83,7 @@
 
     function token(a, b) {
         T = {};
-        T['s'] = encrypt(JSON.stringify([a, b]));
+        T['s'] = utf8Encode(encrypt(JSON.stringify([a, b])));
         let coords = permute(a, b);
         T['a'] = coords['a'];
         T['b'] = coords['b'];
@@ -71,20 +94,13 @@
         return sjcl.mode.gcm.decrypt(aes, c, K['iv'])
     }
 
-    function genPermuation(s1, s2) {
-        let permutation = {};
+    //4-round Luby-Rackoff construction with AES-CTR as PRF
+    function prpPermute(val) {
         //todo
-        for(let i = 0; i < s1; i++) {
-            for(let j = 0; j < s2; j++) {
-                permutation[i][j]["x"] = i;
-                permutation[i][j]["y"] = j;
-            }
-        }
-        return permutation;
     }
 
     //Generate PRP for array
-    function genPRP(arr) {
+    function genPermutation(arr) {
         let P = {};
         const s1 = M.length;
         const s2 = M[0].length;
@@ -105,6 +121,10 @@
         return sjcl.codec.utf8String.toBits(string);
     }
 
+    function utf8Encode(bits) {
+        return sjcl.codec.utf8String.fromBits(bits);
+    }
+
     function base64Encode(bitstring) {
         return sjcl.codec.base64.fromBits(bitstring);
     }
@@ -120,6 +140,10 @@
 
     function encrypt(string) {
         return sjcl.mode.gcm.encrypt(aes, utf8Decode(string), K['iv']);
+    }
+
+    function encBits(bitstring) {
+        return sjcl.mode.gcm.encrypt(feistelAes, bitstring, [0,0,0,0]);
     }
 </script>
 </html>
