@@ -40,6 +40,8 @@
     var aes2 = new sjcl.cipher.aes(sjcl.random.randomWords(4));
     var aes3 = new sjcl.cipher.aes(sjcl.random.randomWords(4));
 
+    var P = {};
+
     function gen(password) {
         K[1] = sjcl.misc.pbkdf2(password, "", 40000, 128);
         prf = new sjcl.cipher.aes(K[1]);
@@ -59,28 +61,29 @@
         let c = [];
         for(let i = 0; i < s1*s2; i++) c[i] = [];
         const p = genPermutation(s1, s2);
-        const P = genPRP(s1, s2);
+        P = genPRP(s1, s2);
         for(let i = 0; i < s1; i++) {
             for(let j = 0; j < s2; j++) {
 
                 let plaintext = M[i][j];
-                let a = P[i][j][0];
-                let b = P[i][j][1];
+                let a = P[i][j]['a'];
+                let b = P[i][j]['b'];
                 let ciphertext;
 
                 if(plaintext !== null) {
 
 
                     let _i = M[i][j];
-                    let s = JSON.stringify(p[_i], message['v'][_i]);
+                    let s = JSON.stringify({j:p[_i], v:message['v'][_i]});
                     let bits = utf8Decode(s);
                     ciphertext = encrypt(JSON.stringify([a,b]));
+                    ciphertext = sjcl.bitArray.clamp(ciphertext, sjcl.bitArray.bitLength(bits));
                     for (let k = 0; k < ciphertext.length; k++) {
-                        ciphertext[k] ^= (bits[k]);
+                        ciphertext[k] ^= bits[k];
                     }
                 }
                 else {
-                    ciphertext = encrypt(sjcl.random.randomWords(4)); //todo
+                    ciphertext = encrypt(sjcl.random.randomWords(4));
                 }
 
 
@@ -90,13 +93,13 @@
         for(let i = 0; i < message['v'].length; i++) {
             c[p[i]] = encryptMessage(message['m'][i]);
         }
-        console.log(C, c);
+        return {ciphertext:c, matrix:C};
     }
 
     function token(a, b) {
         T = {};
-        T['s'] = utf8Encode(encrypt(JSON.stringify([a, b])));
-        let coords = permute(a, b);
+        T['s'] = base64Encode(encrypt(JSON.stringify([a, b])));
+        let coords = P[a][b];
         T['a'] = coords['a'];
         T['b'] = coords['b'];
         return T;
@@ -113,7 +116,7 @@
 
         //Pseudorandomly generate weights for each pair (a, b) in M
         for(let i = 0; i < s1*s2; i++) {
-            weights[i] = {k:[Math.floor(i/s2), i%s2], v:weight(i)};
+            weights[i] = {k:{a:Math.floor(i/s2), b:i%s2}, v:weight(i)};
         }
 
         //Sort weights
@@ -191,7 +194,35 @@
         let matrix = [ [0,1,2],[3,4,5],[6,7,8] ];
         let message = {'v':['a','b','c','d','e','f','g','h','i'], 'm':['aa','bb','cc','dd','ee','ff','gg','hh','ii']};
         gen('pass');
-        enc(matrix, message);
+        let c = enc(matrix, message);
+        console.log(c);
+        let req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+            if(req.readyState === 4 && req.status === 200) {
+                console.log('Matrix uploaded');
+            }
+        };
+        req.open("POST", "/api/upload");
+        req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        req.send(JSON.stringify(c));
+    }
+
+    function test2() {
+        console.log('making token');
+        let t = token(0, 0);
+        console.log(t);
+        let req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+            if(req.readyState === 4 && req.status === 200) {
+                console.log('Token received.  Respoonse: ' + req.responseText);
+                let response = base64Decode(req.responseText);
+                response = utf8Encode(response);
+                console.log(response);
+            }
+        };
+        req.open("POST", "/api/lookup");
+        req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        req.send(JSON.stringify(t));
     }
 </script>
 </html>

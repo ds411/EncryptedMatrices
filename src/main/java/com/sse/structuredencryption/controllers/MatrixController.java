@@ -3,6 +3,7 @@ package com.sse.structuredencryption.controllers;
 import com.sse.structuredencryption.models.Matrix;
 import com.sse.structuredencryption.models.Token;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,19 +15,19 @@ public class MatrixController {
 
     //Uploads an encrypted matrix of pointers and ciphertext
     @PostMapping(value = "/upload", consumes = "application/json")
-    public void upload(Matrix matrix) {
+    public void upload(@RequestBody Matrix matrix) {
         this.matrix = matrix;
     }
 
     //Returns the tuple (j, v) corresponding to token
     @PostMapping(value = "/lookup", consumes = "application/json", produces = "application/json")
-    public String lookup(Token token) {
+    public String lookup(@RequestBody Token token) {
         return matrix.lookup(token);
     }
 
     //Gets the ciphertext at index j
     @PostMapping(value = "/get", consumes = "application/json", produces = "plain/text")
-    public String get(int j) {
+    public String get(@RequestBody int j) {
         return matrix.get(j);
     }
 }

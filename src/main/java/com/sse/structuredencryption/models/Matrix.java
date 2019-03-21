@@ -5,6 +5,7 @@ import java.util.Base64;
 public class Matrix {
 
     private static Base64.Decoder dec = Base64.getDecoder();
+    private static Base64.Encoder enc = Base64.getEncoder();
     private String[] ciphertext;
     private String[][] matrix;
 
@@ -34,19 +35,10 @@ public class Matrix {
         String c = matrix[token.getA()][token.getB()];
         byte[] sBytes = dec.decode(token.getS());
         byte[] cBytes = dec.decode(c);
-        byte[] longer, shorter;
-        if(sBytes.length >= cBytes.length) {
-            longer = sBytes;
-            shorter = cBytes;
+        for(int i = 0; i < sBytes.length; i++) {
+            cBytes[i] ^= sBytes[i];
         }
-        else {
-            longer = cBytes;
-            shorter = sBytes;
-        }
-        for(int i = 0; i < shorter.length; i++) {
-            longer[i] ^= shorter[i];
-        }
-        return new String(longer);
+        return enc.encodeToString(cBytes);
     }
 
     public String get(int index) {
